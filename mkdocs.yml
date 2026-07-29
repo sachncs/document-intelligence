@@ -1,0 +1,69 @@
+site_name: bfsi-rbi
+site_description: Grounded RAG agent for BFSI document intelligence over RBI circulars
+site_author: sachin
+repo_url: https://github.com/sachin/bfsi-rbi
+repo_name: sachin/bfsi-rbi
+edit_uri: ""
+
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.indexes
+    - search.suggest
+    - content.code.copy
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+nav:
+  - Home: index.md
+  - Installation: installation.md
+  - Quickstart: quickstart.md
+  - Architecture: architecture.md
+  - Evaluation: evaluation.md
+  - Contributing: contributing.md
+  - API Reference:
+      - Agent: api/agent.md
+      - Models: api/models.md
+      - Ingestion: api/ingestion.md
+      - Eval: api/eval.md
+
+markdown_extensions:
+  - admonition
+  - pymdownx.highlight
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - toc:
+      permalink: true
+
+plugins:
+  - search
+  - mkdocstrings:
+      default_handler: python
+      handlers:
+        python:
+          paths: [src]
+          options:
+            docstring_style: google
+            show_source: true
+            show_root_heading: true
+            show_root_full_path: false
+            separate_signature: true
+            show_signature_annotations: true
+            members_order: source
+            docstring_section_style: table

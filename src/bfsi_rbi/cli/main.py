@@ -1,0 +1,249 @@
+"""Typer CLI — the entry point installed as ``bfsi-rbi``."""
+
+from __future__ import annotations
+
+import json
+import sys
+from pathlib import Path
+
+import typer
+
+from bfsi_rbi.agent_builder import (
+    deploy_agent,
+    deploy_tools,
+    smoke_test_mcp,
+)
+from bfsi_rbi.config import get_settings
+from bfsi_rbi.eval.dataset import load_dataset
+from bfsi_rbi.eval.report import generate_report
+from bfsi_rbi.eval.runner import run_eval
+from bfsi_rbi.exceptions import BFSIRBIError
+from bfsi_rbi.ingestion.pipeline import run_ingestion
+from bfsi_rbi.ingestion.rbi_scraper import discover_and_download
+from bfsi_rbi.logging import configure_logging, get_logger
+
+app = typer.Typer(
+    name="bfsi-rbi",
+    help="Grounded RAG agent for BFSI document intelligence.",
+    no_args_is_help=True,
+    add_completion=False,
+)
+logger = get_logger(__name__)
+
+
+def _callback(verbose: bool = False) -> None:
+    settings = get_settings()
+    configure_logging("DEBUG" if verbose else settings.bfsi_log_level)
+
+
+@app.callback()
+def _root(
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable DEBUG logging."),
+) -> None:
+    _callback(verbose)
+
+
+@app.command()
+def fetch(
+    max_docs: int | None = typer.Option(None, "--max", "-n", help="Max PDFs to download."),
+    out: Path | None = typer.Option(None, "--out", "-o", help="Output directory."),
+) -> None:
+    """Scrape RBI and download PDFs into ``data/raw/``."""
+    settings = get_settings()
+    target = out or settings.data_raw_dir
+    count = 0
+    for doc, path in discover_and_download(
+        target_dir=target,
+        max_docs=max_docs or settings.rbi_fetch_max_docs,
+        settings=settings,
+    ):
+        typer.echo(f"  {doc.circular_id:60s} → {path}")
+        count += 1
+    typer.echo(f"Fetched {count} PDFs to {target}")
+
+
+@app.command()
+def ingest(
+    raw_dir: Path | None = typer.Option(None, "--raw", help="Raw PDF directory."),
+    chunk_size: int | None = typer.Option(None, "--chunk-size"),
+    chunk_overlap: int | None = typer.Option(None, "--chunk-overlap"),
+    max_docs: int | None = typer.Option(None, "--max", "-n"),
+) -> None:
+    """Run the full ingestion pipeline: scrape → extract → index."""
+    settings = get_settings()
+    report = run_ingestion(
+        raw_dir=raw_dir,
+        chunk_size=chunk_size,
+        chunk_overlap=chunk_overlap,
+        max_docs=max_docs,
+        settings=settings,
+    )
+    typer.echo(
+        json.dumps(
+            {
+                "discovered": report.total_discovered,
+                "downloaded": report.downloaded,
+                "extracted": report.extracted,
+                "indexed": report.indexed,
+                "failed": len(report.failed),
+            },
+            indent=2,
+        )
+    )
+
+
+@app.command(name="setup-inference")
+def setup_inference() -> None:
+    """Ensure the ELSER inference endpoint is configured."""
+    from scripts.setup_inference import ensure_elser
+
+    ensure_elser()
+
+
+@app.command(name="deploy-tools")
+def deploy_tools_cmd() -> None:
+    """POST Agent Builder tool specs to Kibana."""
+    results = deploy_tools()
+    for r in results:
+        typer.echo(f"  {r['id']}: ok")
+
+
+@app.command(name="deploy-agent")
+def deploy_agent_cmd() -> None:
+    """POST the agent spec to Kibana."""
+    result = deploy_agent()
+    typer.echo(f"  {result['id']}: ok")
+
+
+@app.command(name="smoke-mcp")
+def smoke_mcp_cmd() -> None:
+    """Verify the MCP endpoint is reachable."""
+    result = smoke_test_mcp()
+    typer.echo(json.dumps(result, indent=2))
+
+
+@app.command()
+def eval(
+    dataset: Path | None = typer.Option(None, "--dataset", "-d"),
+    concurrency: int | None = typer.Option(None, "--concurrency", "-c"),
+    limit: int | None = typer.Option(None, "--limit", "-n"),
+    out: Path | None = typer.Option(None, "--out", "-o"),
+) -> None:
+    """Run the evaluation suite."""
+    settings = get_settings()
+    cases = load_dataset(dataset or settings.eval_dataset_path)
+    if limit:
+        cases = cases[:limit]
+    results = run_eval(
+        cases,
+        concurrency=concurrency,
+        output_path=out or (settings.reports_dir / "results.jsonl"),
+        settings=settings,
+    )
+    typer.echo(
+        f"Ran {len(results)} cases. Results written to {out or settings.reports_dir / 'results.jsonl'}"
+    )
+
+
+@app.command()
+def report(
+    results: Path = typer.Argument(..., exists=True, dir_okay=False, readable=True),
+    out: Path | None = typer.Option(None, "--out", "-o"),
+) -> None:
+    """Generate a Markdown report from results.jsonl."""
+    settings = get_settings()
+    raw = []
+    for line in results.read_text(encoding="utf-8").splitlines():
+        if line.strip():
+            raw.append(json.loads(line))
+    from bfsi_rbi.eval.hallucination import HallucinationResult
+    from bfsi_rbi.eval.runner import CaseResult
+
+    cases: list[CaseResult] = []
+    for r in raw:
+        cases.append(
+            CaseResult(
+                case_name=r["case_name"],
+                question=r["question"],
+                gold_answer=r["gold_answer"],
+                metadata=r.get("metadata", {}),
+                grounded_answer=r.get("grounded_answer", ""),
+                grounded_citations=r.get("grounded_citations", []),
+                grounded_hallucination=(
+                    HallucinationResult(
+                        **{k: v for k, v in r["grounded_hallucination"].items() if k != "claims"}
+                    )
+                    if r.get("grounded_hallucination")
+                    else None
+                ),
+                ungrounded_answer=r.get("ungrounded_answer", ""),
+                ungrounded_hallucination=(
+                    HallucinationResult(
+                        **{k: v for k, v in r["ungrounded_hallucination"].items() if k != "claims"}
+                    )
+                    if r.get("ungrounded_hallucination")
+                    else None
+                ),
+            )
+        )
+    target = out or (settings.reports_dir / "eval_report.md")
+    rep = generate_report(cases, target)
+    typer.echo(f"Report written to {target}")
+    typer.echo(
+        f"  Grounded hallucination: {rep.grounded_hallucination_rate:.1%}\n"
+        f"  Ungrounded hallucination: {rep.ungrounded_hallucination_rate:.1%}\n"
+        f"  Relative reduction: {rep.relative_reduction:+.1%}"
+    )
+
+
+@app.command()
+def demo(
+    port: int = typer.Option(8501, "--port", "-p"),
+    host: str = typer.Option("localhost", "--host"),
+) -> None:
+    """Launch the Streamlit A/B demo."""
+    import subprocess
+
+    target = Path(__file__).parent.parent / "ui" / "streamlit_app.py"
+    cmd = [
+        sys.executable,
+        "-m",
+        "streamlit",
+        "run",
+        str(target),
+        "--server.port",
+        str(port),
+        "--server.address",
+        host,
+    ]
+    typer.echo("Launching: " + " ".join(cmd))
+    subprocess.run(cmd, check=False)
+
+
+@app.command(name="dataset-info")
+def dataset_info(
+    dataset: Path | None = typer.Option(None, "--dataset", "-d"),
+) -> None:
+    """Show summary stats for the eval dataset."""
+    settings = get_settings()
+    cases = load_dataset(dataset or settings.eval_dataset_path)
+    by_topic: dict[str, int] = {}
+    for c in cases:
+        t = c.metadata.get("topic", "unknown")
+        by_topic[t] = by_topic.get(t, 0) + 1
+    typer.echo(f"Total cases: {len(cases)}")
+    for t, n in sorted(by_topic.items()):
+        typer.echo(f"  {t}: {n}")
+
+
+def main() -> None:
+    """Entry point for ``bfsi-rbi`` console script."""
+    try:
+        app()
+    except BFSIRBIError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+
+
+if __name__ == "__main__":
+    main()

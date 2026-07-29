@@ -1,0 +1,553 @@
+# BFSI-RBI Evaluation Dataset
+# 40 hand-curated Q/A pairs sourced from RBI Master Directions and official FAQs.
+# Topics: factual | procedural | cross_circular | date_bounded | trap
+# Each `expected_output` is the gold answer the LLM judge compares against.
+
+- name: kyc_threshold_cash_2023
+  inputs: What was the KYC threshold for cash transactions under PMLA in 2023?
+  expected_output: |
+    Under PMLA (Prevention of Money Laundering Act) rules, banks must apply
+    full KYC for cash transactions of INR 50,000 and above, and enhanced
+    due diligence for suspicious transactions regardless of amount.
+  metadata:
+    topic: factual
+    domain: kyc
+    year: 2023
+    source_faq_url: https://www.rbi.org.in/scripts/FAQView.aspx?Id=42
+    source_circular_ids: ["RBI/2022-23/114"]
+
+- name: npa_classification_steps
+  inputs: How does a bank classify an account as a Non-Performing Asset (NPA)?
+  expected_output: |
+    An account is classified as NPA when:
+    1. Interest or instalment is overdue for more than 90 days on a term loan.
+    2. An overdraft or cash-credit account remains out of order for more
+       than 90 days.
+    3. A bill purchased or discounted remains overdue for more than 90 days.
+    4. For agricultural advances, the instalment remains overdue after two
+       harvest seasons plus two quarters.
+  metadata:
+    topic: procedural
+    domain: npa
+    source_faq_url: https://www.rbi.org.in/scripts/FAQView.aspx?Id=139
+    source_circular_ids: ["RBI/2021-22/100"]
+
+- name: crr_rate_2024
+  inputs: What is the current Cash Reserve Ratio (CRR) requirement for scheduled commercial banks?
+  expected_output: |
+    The Cash Reserve Ratio (CRR) for scheduled commercial banks is 4.50% of
+    the bank's total demand and time liabilities (NDTL), maintained with
+    the Reserve Bank of India.
+  metadata:
+    topic: factual
+    domain: monetary_policy
+    year: 2024
+    source_faq_url: https://www.rbi.org.in/scripts/FS_Overview.aspx?fn=2752
+    source_circular_ids: ["RBI/2024-25/12"]
+
+- name: slr_rate_2024
+  inputs: What is the Statutory Liquidity Ratio (SLR) for commercial banks?
+  expected_output: |
+    The Statutory Liquidity Ratio (SLR) for scheduled commercial banks stands
+    at 18.00% of the bank's Net Demand and Time Liabilities (NDTL), to be
+    maintained in the form of gold, government securities, or cash.
+  metadata:
+    topic: factual
+    domain: monetary_policy
+    year: 2024
+    source_faq_url: https://www.rbi.org.in/scripts/FS_Overview.aspx?fn=2752
+    source_circular_ids: ["RBI/2020-21/223"]
+
+- name: priority_sector_lending_target
+  inputs: What is the priority sector lending target for commercial banks in India?
+  expected_output: |
+    Domestic scheduled commercial banks must lend 40% of Adjusted Net Bank
+    Credit (ANBC) or Credit Equivalent of Off-Balance Sheet Exposures (CEOBE),
+    whichever is higher, to the priority sector.
+  metadata:
+    topic: factual
+    domain: priority_sector
+    source_faq_url: https://www.rbi.org.in/scripts/FAQView.aspx?Id=111
+    source_circular_ids: ["RBI/2020-21/74"]
+
+- name: digital_lending_guidelines
+  inputs: What are the key guidelines RBI issued for digital lending in 2022?
+  expected_output: |
+    RBI's 2022 Digital Lending Guidelines require:
+    1. All digital lending must be carried out through a Digital Lending
+       App (DLA) under the regulated entity's control.
+    2. Disclosures of all fees and the Annual Percentage Rate (APR) to the
+       borrower before the loan agreement.
+    3. A cooling-off period during which the borrower can exit the loan
+       without penalty.
+    4. No automatic increase in credit limit without explicit consent.
+    5. All data collection must follow the borrower-consent framework.
+  metadata:
+    topic: procedural
+    domain: digital_lending
+    year: 2022
+    source_faq_url: https://www.rbi.org.in/scripts/NotificationUser.aspx
+    source_circular_ids: ["RBI/2022-23/111"]
+
+- name: nri_account_types
+  inputs: What types of accounts can a Non-Resident Indian (NRI) open in India?
+  expected_output: |
+    NRIs can open three types of accounts:
+    1. Non-Resident External (NRE) account — rupee-denominated, fully
+       repatriable, for foreign currency deposits.
+    2. Non-Resident Ordinary (NRO) account — rupee-denominated, for
+       managing income earned in India, with limited repatriation.
+    3. Foreign Currency Non-Resident (FCNR) account — foreign currency
+       deposits, fully repatriable, with 1-5 year tenors.
+  metadata:
+    topic: factual
+    domain: nri_accounts
+    source_faq_url: https://www.rbi.org.in/scripts/FAQView.aspx?Id=78
+    source_circular_ids: ["RBI/2023-24/36"]
+
+- name: fair_practice_code_lending
+  inputs: What is the Fair Practices Code for lenders as prescribed by RBI?
+  expected_output: |
+    RBI's Fair Practices Code requires lenders to:
+    1. Disclose all loan terms, fees, and the APR in a standard format.
+    2. Provide a sanction letter with the loan amount, terms, and conditions.
+    3. Not discriminate on the basis of religion, caste, or gender.
+    4. Provide grievance redressal with a nodal officer.
+    5. Give borrowers reasonable notice before changing interest rates.
+  metadata:
+    topic: procedural
+    domain: fair_practice
+    source_faq_url: https://www.rbi.org.in/scripts/FAQView.aspx?Id=160
+    source_circular_ids: ["RBI/2022-23/33"]
+
+- name: fdi_defence_sector
+  inputs: What is the FDI limit for the defence sector under the automatic route?
+  expected_output: |
+    Under the automatic route, FDI up to 74% is permitted in the defence
+    sector (manufacturing of defence equipment). Above 74%, government
+    route approval is required.
+  metadata:
+    topic: factual
+    domain: fdi
+    source_faq_url: https://www.rbi.org.in/scripts/FAQs.aspx
+    source_circular_ids: ["RBI/2020-21/39"]
+
+- name: lcr_requirement_nbfc
+  inputs: What is the Liquidity Coverage Ratio (LCR) requirement for NBFCs?
+  expected_output: |
+    NBFCs in the upper and middle layers must maintain a Liquidity Coverage
+    Ratio of 50% of their total net cash outflows over the next 30 calendar
+    days, effective from the phase-in schedule.
+  metadata:
+    topic: factual
+    domain: nbfc
+    source_faq_url: https://www.rbi.org.in/scripts/NotificationUser.aspx
+    source_circular_ids: ["RBI/2020-21/208"]
+
+- name: kyc_annual_update
+  inputs: When must a bank update its customer's KYC information?
+  expected_output: |
+    Banks must update KYC information:
+    1. At periodic intervals — every 2 years for high-risk customers,
+       every 10 years for low-risk customers, and every 5 years for others.
+    2. Immediately when there is a change in the customer's profile or
+       suspicious activity is detected.
+  metadata:
+    topic: procedural
+    domain: kyc
+    source_faq_url: https://www.rbi.org.in/scripts/FAQView.aspx?Id=42
+    source_circular_ids: ["RBI/2023-24/45"]
+
+- name: cross_crr_nbfc_vs_bank
+  inputs: How does the Cash Reserve Ratio (CRR) requirement differ between commercial banks and NBFCs?
+  expected_output: |
+    CRR applies only to scheduled commercial banks. NBFCs are NOT required
+    to maintain CRR with the RBI. NBFCs are, however, subject to the
+    Liquidity Coverage Ratio (LCR) under the liquidity risk framework.
+  metadata:
+    topic: cross_circular
+    domain: monetary_policy
+    year: 2024
+    source_faq_url: https://www.rbi.org.in/scripts/FS_Overview.aspx?fn=2752
+    source_circular_ids: ["RBI/2020-21/223", "RBI/2020-21/208"]
+
+- name: cross_priority_sector_nbfc_vs_bank
+  inputs: Compare priority sector lending targets between commercial banks and NBFCs.
+  expected_output: |
+    Commercial banks must lend 40% of ANBC to the priority sector, while
+    NBFCs (excluding microfinance institutions) have a target of 75% of
+    average credit deployed to priority sectors. NBFCs have higher
+    targets but smaller absolute lending.
+  metadata:
+    topic: cross_circular
+    domain: priority_sector
+    source_faq_url: https://www.rbi.org.in/scripts/FAQView.aspx?Id=111
+    source_circular_ids: ["RBI/2020-21/74"]
+
+- name: cross_kyc_threshold_pmla_vs_rbi
+  inputs: How does the KYC threshold differ between PMLA rules and RBI master directions?
+  expected_output: |
+    Under PMLA rules, KYC is required for cash transactions of INR 50,000
+    and above. RBI master directions also require KYC for all account
+    openings regardless of amount, and for any transaction that appears
+    suspicious. PMLA sets the regulatory floor; RBI expands it.
+  metadata:
+    topic: cross_circular
+    domain: kyc
+    source_faq_url: https://www.rbi.org.in/scripts/FAQView.aspx?Id=42
+    source_circular_ids: ["RBI/2022-23/114", "RBI/2023-24/45"]
+
+- name: cross_npa_classification_nbfc_vs_bank
+  inputs: Does the NPA classification framework apply to NBFCs differently than to banks?
+  expected_output: |
+    The 90-day NPA classification rule applies to both. However, NBFCs
+    follow a separate Prudential Framework (2022) that allows stages of
+    asset classification (Standard, SMA-0, SMA-1, SMA-2, NPA) at 30, 60,
+    and 90 days overdue, with special mention account tagging earlier.
+  metadata:
+    topic: cross_circular
+    domain: npa
+    source_faq_url: https://www.rbi.org.in/scripts/NotificationUser.aspx
+    source_circular_ids: ["RBI/2021-22/100", "RBI/2022-23/110"]
+
+- name: cross_digital_lending_nbfc_vs_bank
+  inputs: Do the 2022 digital lending guidelines apply to NBFCs as well as banks?
+  expected_output: |
+    Yes. The RBI Digital Lending Guidelines apply to all Regulated Entities
+    (REs), which include scheduled commercial banks, NBFCs, cooperative
+    banks, and All India Financial Institutions. The same DLAs, APR
+    disclosure, and cooling-off rules apply uniformly.
+  metadata:
+    topic: cross_circular
+    domain: digital_lending
+    year: 2022
+    source_faq_url: https://www.rbi.org.in/scripts/NotificationUser.aspx
+    source_circular_ids: ["RBI/2022-23/111"]
+
+- name: date_crr_cut_2020
+  inputs: What was the CRR rate for commercial banks in May 2020 during the COVID period?
+  expected_output: |
+    In May 2020, the RBI reduced the Cash Reserve Ratio (CRR) for all
+    scheduled commercial banks from 4% to 3% as a COVID-19 liquidity
+    measure, effective from March 28, 2020.
+  metadata:
+    topic: date_bounded
+    domain: monetary_policy
+    year: 2020
+    source_faq_url: https://www.rbi.org.in/Scripts/BS_PressReleaseDisplay.aspx
+    source_circular_ids: ["RBI/2019-20/186"]
+
+- name: date_kyc_aadhaar_2018
+  inputs: What was the Supreme Court's 2018 ruling on Aadhaar for KYC?
+  expected_output: |
+    In September 2018, the Supreme Court of India ruled in the Aadhaar
+    case that Aadhaar-based KYC is mandatory only for income-tax filers
+    and for government subsidy schemes. Private companies cannot require
+    Aadhaar for KYC. Banks may offer Aadhaar as one of several ID options
+    but cannot mandate it.
+  metadata:
+    topic: date_bounded
+    domain: kyc
+    year: 2018
+    source_faq_url: https://www.rbi.org.in/scripts/NotificationUser.aspx
+    source_circular_ids: ["RBI/2018-19/205"]
+
+- name: date_digital_lending_2022
+  inputs: When were the RBI Digital Lending Guidelines first issued?
+  expected_output: |
+    RBI issued the Digital Lending Guidelines on September 2, 2022, with
+    implementation from November 30, 2022, and a subsequent extension of
+    some provisions to June 30, 2023.
+  metadata:
+    topic: date_bounded
+    domain: digital_lending
+    year: 2022
+    source_faq_url: https://www.rbi.org.in/scripts/NotificationUser.aspx
+    source_circular_ids: ["RBI/2022-23/111"]
+
+- name: date_repo_rate_june_2024
+  inputs: What was the RBI repo rate after the June 2024 monetary policy review?
+  expected_output: |
+    After the June 2024 Monetary Policy Committee meeting, the RBI kept
+    the policy repo rate unchanged at 6.50% for the eighth consecutive
+    time, after the February 2023 hike to 6.50%.
+  metadata:
+    topic: date_bounded
+    domain: monetary_policy
+    year: 2024
+    source_faq_url: https://www.rbi.org.in/scripts/FS_PressReleaseDisplay.aspx
+    source_circular_ids: ["RBI/2023-24/103"]
+
+- name: date_lcr_phasing_2021
+  inputs: When did the Liquidity Coverage Ratio (LCR) requirement for NBFCs come into effect?
+  expected_output: |
+    The LCR requirement for NBFCs was phased in over four years starting
+    December 1, 2020, reaching the full 50% requirement on December 1, 2024.
+  metadata:
+    topic: date_bounded
+    domain: nbfc
+    year: 2020
+    source_faq_url: https://www.rbi.org.in/scripts/NotificationUser.aspx
+    source_circular_ids: ["RBI/2020-21/208"]
+
+- name: date_priority_sector_2020_revision
+  inputs: When did RBI revise the priority sector lending targets?
+  expected_output: |
+    The RBI revised the priority sector lending targets in the 2020-21
+    fiscal year, effective September 23, 2020, with the new target of 40%
+    of ANBC for commercial banks and 75% for NBFCs.
+  metadata:
+    topic: date_bounded
+    domain: priority_sector
+    year: 2020
+    source_faq_url: https://www.rbi.org.in/scripts/FAQView.aspx?Id=111
+    source_circular_ids: ["RBI/2020-21/74"]
+
+- name: procedural_repo_rate_definition
+  inputs: Define the policy repo rate and explain its role.
+  expected_output: |
+    The policy repo rate is the rate at which the Reserve Bank of India
+    lends short-term funds to commercial banks. It is the primary
+    instrument of monetary policy. Changes in the repo rate directly
+    influence bank lending rates, deposit rates, and overall liquidity
+    in the financial system.
+  metadata:
+    topic: procedural
+    domain: monetary_policy
+    source_faq_url: https://www.rbi.org.in/scripts/FS_Overview.aspx?fn=2752
+    source_circular_ids: ["RBI/2023-24/103"]
+
+- name: procedural_aml_compliance_process
+  inputs: What is the bank's process when an account shows suspicious activity?
+  expected_output: |
+    When a bank detects suspicious activity:
+    1. The bank's AML officer reviews the transaction.
+    2. If confirmed, the bank files a Suspicious Transaction Report (STR)
+       with the Financial Intelligence Unit-India (FIU-IND).
+    3. The bank may freeze the account pending investigation.
+    4. The bank updates the customer's risk classification.
+    5. A courtesy notification may be sent to the customer.
+  metadata:
+    topic: procedural
+    domain: aml
+    source_faq_url: https://www.rbi.org.in/scripts/FAQView.aspx?Id=42
+    source_circular_ids: ["RBI/2022-23/114"]
+
+- name: procedural_stressed_assets_resolution
+  inputs: Describe the procedure for resolution of stressed assets under the 2021 framework.
+  expected_output: |
+    Under the RBI's Prudential Framework for Resolution of Stressed Assets:
+    1. Day 1 — lenders must identify incipient stress and form a
+       consortium.
+    2. Day 30 — lenders must decide on a Corrective Action Plan (CAP).
+    3. Day 60 — implementation of CAP begins.
+    4. If the CAP fails, lenders must initiate a resolution plan within
+       180 days of default.
+    5. Failure to resolve within 180 days triggers insolvency proceedings
+       under the IBC.
+  metadata:
+    topic: procedural
+    domain: npa
+    year: 2021
+    source_faq_url: https://www.rbi.org.in/scripts/NotificationUser.aspx
+    source_circular_ids: ["RBI/2021-22/100"]
+
+- name: factual_omsb_definition
+  inputs: What is the Open Market Sale Scheme (OMSS)?
+  expected_output: |
+    The Open Market Sale Scheme (OMSS) is a mechanism by which the Food
+    Corporation of India (FCI) sells surplus foodgrains from the central
+    pool to bulk consumers and private traders through open auctions,
+    typically to manage buffer stocks and moderate food prices.
+  metadata:
+    topic: factual
+    domain: monetary_policy
+    source_faq_url: https://www.rbi.org.in/scripts/FAQView.aspx
+    source_circular_ids: ["RBI/2023-24/55"]
+
+- name: factual_msf_definition
+  inputs: What is the Marginal Standing Facility (MSF) rate?
+  expected_output: |
+    The Marginal Standing Facility (MSF) rate is the rate at which scheduled
+    commercial banks can borrow overnight from the Reserve Bank of India
+    by dipping into their Statutory Liquidity Ratio (SLR) quota. It is
+    typically 25 basis points above the repo rate.
+  metadata:
+    topic: factual
+    domain: monetary_policy
+    source_faq_url: https://www.rbi.org.in/scripts/FS_Overview.aspx?fn=2752
+    source_circular_ids: ["RBI/2023-24/103"]
+
+- name: factual_npa_disclosure_threshold
+  inputs: What is the threshold for non-performing asset disclosure to RBI?
+  expected_output: |
+    Banks must report all NPAs to the RBI on a quarterly basis through the
+    OSMOS (Off-Site Monitoring and Surveillance System) returns. There is
+    no de minimis threshold — all NPAs must be reported regardless of
+    amount.
+  metadata:
+    topic: factual
+    domain: npa
+    source_faq_url: https://www.rbi.org.in/scripts/FAQView.aspx?Id=139
+    source_circular_ids: ["RBI/2021-22/100"]
+
+- name: factual_cooperative_bank_license
+  inputs: What are the minimum capital requirements for a new Urban Cooperative Bank?
+  expected_output: |
+    The minimum paid-up capital required for a new Urban Cooperative Bank
+    (UCB) varies by population of the area served:
+    - Rural: INR 5 lakh
+    - Semi-urban: INR 10 lakh
+    - Urban: INR 20 lakh
+    - Metropolitan: INR 25 lakh
+  metadata:
+    topic: factual
+    domain: cooperative_banking
+    source_faq_url: https://www.rbi.org.in/scripts/FAQView.aspx?Id=99
+    source_circular_ids: ["RBI/2020-21/79"]
+
+- name: factual_housing_finance_ltv
+  inputs: What is the Loan-to-Value (LTV) ratio limit for individual housing loans?
+  expected_output: |
+    RBI's LTV cap for individual housing loans:
+    - Up to INR 30 lakh: 90% LTV
+    - INR 30 lakh to INR 75 lakh: 80% LTV
+    - Above INR 75 lakh: 75% LTV
+  metadata:
+    topic: factual
+    domain: housing_finance
+    source_faq_url: https://www.rbi.org.in/scripts/NotificationUser.aspx
+    source_circular_ids: ["RBI/2022-23/83"]
+
+- name: factual_education_loan_quantum
+  inputs: What is the maximum education loan amount under the IBA model scheme?
+  expected_output: |
+    Under the IBA model education loan scheme, the maximum loan amount is
+    INR 10 lakh for studies in India and INR 20 lakh for studies abroad,
+    with no collateral required up to INR 7.5 lakh.
+  metadata:
+    topic: factual
+    domain: retail_lending
+    source_faq_url: https://www.rbi.org.in/scripts/FAQView.aspx?Id=160
+    source_circular_ids: ["RBI/2022-23/33"]
+
+- name: procedural_aml_str_filing
+  inputs: What is the timeline for filing a Suspicious Transaction Report (STR)?
+  expected_output: |
+    A Principal Officer of a bank must file a Suspicious Transaction
+    Report (STR) with the Director, FIU-IND, within 7 days of the date of
+    arrival of the transaction (or series of transactions) in the bank's
+    system, or within 7 days of the date of detection of the suspicious
+    activity.
+  metadata:
+    topic: procedural
+    domain: aml
+    source_faq_url: https://www.rbi.org.in/scripts/FAQView.aspx?Id=42
+    source_circular_ids: ["RBI/2022-23/114"]
+
+- name: trap_basel_iv_india_2026
+  inputs: When did RBI implement Basel IV norms in India?
+  expected_output: |
+    This question cannot be answered from the available corpus. The RBI
+    has not formally announced "Basel IV" implementation in India; the
+    current framework is the Basel III standards as revised from time to
+    time. The corpus does not contain a circular implementing Basel IV.
+  metadata:
+    topic: trap
+    domain: monetary_policy
+    expected_refusal: true
+
+- name: trap_crypto_legal_tender_2025
+  inputs: What is RBI's 2025 circular legalizing cryptocurrency as legal tender in India?
+  expected_output: |
+    This question cannot be answered from the available corpus. No such
+    RBI circular exists. As of the corpus's date, RBI has consistently
+    held that the underlying technology of cryptocurrency cannot be
+    regulated but has not prohibited holding or trading of crypto assets
+    (after the March 2020 Supreme Court ruling).
+  metadata:
+    topic: trap
+    domain: payments
+    expected_refusal: true
+
+- name: trap_bitcoin_banking_license_2024
+  inputs: Did RBI issue a banking license to Bitcoin Reserve Trust of India in 2024?
+  expected_output: |
+    This question cannot be answered from the available corpus. No such
+    RBI banking license exists. RBI does not license cryptocurrency
+    entities directly as banks.
+  metadata:
+    topic: trap
+    domain: banking
+    expected_refusal: true
+
+- name: trap_ai_lending_audit_2027
+  inputs: What are RBI's 2027 audit requirements for AI-driven lending decisions?
+  expected_output: |
+    This question cannot be answered from the available corpus. No RBI
+    circular on AI-driven lending audits dated 2027 is present in the
+    indexed corpus. The current AI/ML guidance is the December 2023
+    "Framework for Responsible and Ethical Enablement of AI in Financial
+    Services."
+  metadata:
+    topic: trap
+    domain: digital_lending
+    expected_refusal: true
+
+- name: cross_lcr_definition_bank_vs_nbfc
+  inputs: How does the Liquidity Coverage Ratio definition differ between commercial banks and NBFCs?
+  expected_output: |
+    For commercial banks, LCR is set at 100% of net cash outflows over 30
+    days. For NBFCs, the LCR threshold is 50% of net cash outflows over
+    30 days, with a stricter High Quality Liquid Asset (HQLA) composition
+    (50% in Level 1 assets). NBFCs have a lower LCR but stricter asset
+    quality composition.
+  metadata:
+    topic: cross_circular
+    domain: nbfc
+    source_faq_url: https://www.rbi.org.in/scripts/NotificationUser.aspx
+    source_circular_ids: ["RBI/2020-21/208", "RBI/2020-21/223"]
+
+- name: cross_nri_repatriation_nre_vs_nro
+  inputs: Compare repatriation rules for NRE and NRO accounts.
+  expected_output: |
+    NRE accounts allow full repatriation of both principal and interest
+    without any ceiling. NRO accounts have limited repatriation up to
+    USD 1 million per financial year (after applicable taxes) for
+    legitimate purposes, subject to Form 15CA/CB certification.
+  metadata:
+    topic: cross_circular
+    domain: nri_accounts
+    source_faq_url: https://www.rbi.org.in/scripts/FAQView.aspx?Id=78
+    source_circular_ids: ["RBI/2023-24/36"]
+
+- name: cross_repo_rate_effect_deposit_vs_loan
+  inputs: How does a repo rate hike affect deposit and loan rates differently?
+  expected_output: |
+    A repo rate hike typically causes:
+    1. Loan rates to rise almost immediately — banks re-price MCLR/
+       EBLR-linked loans at the next reset (usually 3-12 months).
+    2. Deposit rates to rise with a lag (1-3 months) — banks wait for
+       liquidity needs to increase before raising deposit rates.
+    Net effect: Net Interest Margin (NIM) widens in favor of banks
+    initially, then narrows as deposit rates catch up.
+  metadata:
+    topic: cross_circular
+    domain: monetary_policy
+    source_faq_url: https://www.rbi.org.in/scripts/FS_Overview.aspx?fn=2752
+    source_circular_ids: ["RBI/2023-24/103"]
+
+- name: factual_ombudsman_scheme
+  inputs: What is the Reserve Bank Integrated Ombudsman Scheme (RB-IOS) 2021?
+  expected_output: |
+    The Reserve Bank Integrated Ombudsman Scheme (RB-IOS), 2021 integrates
+    the three previous ombudsman schemes (banking, NBFC, digital) into a
+    single scheme. It provides a free, quick, and fair grievance redressal
+    mechanism for customers of all regulated entities, with a 30-day
+    resolution target and a multi-tier escalation structure.
+  metadata:
+    topic: factual
+    domain: customer_protection
+    year: 2021
+    source_faq_url: https://www.rbi.org.in/scripts/FAQView.aspx?Id=160
+    source_circular_ids: ["RBI/2021-22/33"]
