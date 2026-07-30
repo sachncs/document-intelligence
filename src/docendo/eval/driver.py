@@ -16,7 +16,7 @@ from typing import Any
 from docendo.agent import agent
 from docendo.config import Settings, get_settings
 from docendo.eval.cases import Case
-from docendo.eval.judge import Verdict_, ascore
+from docendo.eval.judge import Verdict, ascore
 from docendo.logging import get_logger
 from docendo.models import Answer
 
@@ -33,9 +33,9 @@ class Outcome:
     metadata: dict[str, Any] = field(default_factory=dict)
     grounded_answer: str = ""
     grounded_citations: list[dict[str, Any]] = field(default_factory=list)
-    grounded_hallucination: Verdict_ | None = None
+    grounded_hallucination: Verdict | None = None
     ungrounded_answer: str = ""
-    ungrounded_hallucination: Verdict_ | None = None
+    ungrounded_hallucination: Verdict | None = None
 
     def text(self, answer: Answer | str) -> str:
         if isinstance(answer, str):

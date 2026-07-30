@@ -29,7 +29,7 @@ from docendo.logging import get_logger
 
 logger = get_logger(__name__)
 
-Verdict = Literal["supported", "contradicted", "extra"]
+ClaimVerdict = Literal["supported", "contradicted", "extra"]
 
 
 @dataclass
@@ -37,17 +37,13 @@ class Claim:
     """One atomic claim extracted from the agent's answer."""
 
     text: str
-    verdict: Verdict
+    verdict: ClaimVerdict
     reason: str = ""
 
 
 @dataclass
-class Verdict_:
-    """Aggregated hallucination score for one answer.
-
-    Named ``Verdict_`` (with underscore suffix) to avoid colliding with
-    the ``Verdict`` type alias. Re-exported as ``Verdict`` for public use.
-    """
+class Verdict:
+    """Aggregated hallucination score for one answer."""
 
     claims: list[Claim] = field(default_factory=list)
     total_claims: int = 0
@@ -79,10 +75,6 @@ class Verdict_:
                 {"text": c.text, "verdict": c.verdict, "reason": c.reason} for c in self.claims
             ],
         }
-
-
-# Public alias for the dataclass.
-Verdict = Verdict_  # type: ignore[assignment,misc]
 
 
 _CLAIM_EXTRACTION_PROMPT = """\
@@ -152,7 +144,7 @@ def extract(answer: str, settings: Settings) -> list[str] | None:
     return None
 
 
-def judge_claim(claim: str, gold: str, settings: Settings) -> tuple[Verdict, str]:
+def judge_claim(claim: str, gold: str, settings: Settings) -> tuple[ClaimVerdict, str]:
     """Judge a single claim against the gold answer."""
     response = completion(
         model=settings.chat,
@@ -182,7 +174,7 @@ def judge_claim(claim: str, gold: str, settings: Settings) -> tuple[Verdict, str
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
-def score(answer: str, gold: str, settings: Settings | None = None) -> Verdict_:
+def score(answer: str, gold: str, settings: Settings | None = None) -> Verdict:
     """Compute a Verdict for a single (answer, gold) pair."""
     settings = settings or get_settings()
     settings.require_llm()
@@ -190,10 +182,10 @@ def score(answer: str, gold: str, settings: Settings | None = None) -> Verdict_:
     claims = extract(answer, settings)
     if claims is None or not claims:
         # Judge failure: do not bias the rate with a bogus single "extra" claim.
-        return Verdict_(total_claims=0)
+        return Verdict(total_claims=0)
 
     verdicts = [judge_claim(c, gold, settings) for c in claims]
-    result = Verdict_(total_claims=len(claims))
+    result = Verdict(total_claims=len(claims))
     for claim, (verdict, reason) in zip(claims, verdicts, strict=True):
         result.claims.append(Claim(text=claim, verdict=verdict, reason=reason))
         if verdict == "supported":
@@ -205,20 +197,20 @@ def score(answer: str, gold: str, settings: Settings | None = None) -> Verdict_:
     return result
 
 
-async def ascore(answer: str, gold: str, settings: Settings | None = None) -> Verdict_:
+async def ascore(answer: str, gold: str, settings: Settings | None = None) -> Verdict:
     """Async variant of :func:`score`."""
     settings = settings or get_settings()
     settings.require_llm()
 
     claims = await asyncio.to_thread(extract, answer, settings)
     if claims is None or not claims:
-        return Verdict_(total_claims=0)
+        return Verdict(total_claims=0)
 
     verdicts = await asyncio.gather(
         *[asyncio.to_thread(judge_claim, c, gold, settings) for c in claims]
     )
 
-    result = Verdict_(total_claims=len(claims))
+    result = Verdict(total_claims=len(claims))
     for claim, (verdict, reason) in zip(claims, verdicts, strict=True):
         result.claims.append(Claim(text=claim, verdict=verdict, reason=reason))
         if verdict == "supported":

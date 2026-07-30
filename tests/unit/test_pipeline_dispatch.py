@@ -11,8 +11,8 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
 import pypdf
+import pytest
 
 
 def _write_fake_pdf(path: Path) -> Path:

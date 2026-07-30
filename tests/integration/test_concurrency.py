@@ -2,17 +2,17 @@
 
 from __future__ import annotations
 
-import asyncio
 import math
 import threading
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
+from pydantic import HttpUrl
 
 from docendo.config import reset_settings_cache
-from docendo.retrieval._internal import reset_retriever_cache
-from docendo.retrieval.store import SQLiteStore
+from docendo.retrieval._internal import reset as reset_internal
+from docendo.retrieval.record import ChunkRecord
+from docendo.retrieval.store import Store
 
 DIMS = 4
 
@@ -23,49 +23,51 @@ def _normalize(v: list[float]) -> list[float]:
 
 
 def _fake_embed(texts: list[str], *, settings=None) -> list[list[float]]:
-    return [_normalize([((abs(hash(t)) >> i) & 0xFF) / 255.0 for i in range(DIMS)]) for t in texts]
+    return [
+        _normalize([((abs(hash(t)) >> i) & 0xFF) / 255.0 for i in range(DIMS)])
+        for t in texts
+    ]
 
 
-def _record(circ: str, text: str, hash_: str) -> dict:
-    return {
-        "circular_id": circ,
-        "title": f"Title {circ}",
-        "text": text,
-        "issue_date": "2024-01-15",
-        "topic": "kyc",
-        "source_url": f"https://rbi.org.in/{circ}",
-        "page_start": 1,
-        "page_end": 1,
-        "chunk_index": 0,
-        "chunk_count": 1,
-        "extraction_method": "text",
-        "content_hash": hash_,
-        "embedding": _fake_embed([text])[0],
-    }
+def _record(circ: str, text: str, hash_: str) -> ChunkRecord:
+    return ChunkRecord(
+        circular_id=circ,
+        title=f"Title {circ}",
+        text=text,
+        issue_date="2024-01-15",
+        topic="kyc",
+        source_url=HttpUrl(f"https://rbi.org.in/{circ}"),
+        page_estimate_start=1,
+        page_estimate_end=1,
+        chunk_index=0,
+        chunk_count=1,
+        extraction_method="text",
+        content_hash=hash_,
+        embedding=_fake_embed([text])[0],
+    )
 
 
 @pytest.fixture
 def tmp_db(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    db = tmp_path / "rbi.sqlite3"
-    monkeypatch.setenv("BFSI_SQLITE_PATH", str(db))
-    monkeypatch.setenv("BFSI_EMBEDDING_DIMS", str(DIMS))
-    monkeypatch.setenv("BFSI_EMBEDDING_API_KEY", "test-key")
-    monkeypatch.setenv("BFSI_EMBEDDING_API_BASE", "https://embed.example.com")
-    monkeypatch.setenv("BFSI_EMBEDDING_MODEL", "Qwen/Qwen3-Embedding-8B")
-    monkeypatch.setenv("BFSI_TOKENIZER_MODEL", "Qwen/Qwen3-Embedding-8B")
+    db = tmp_path / "docendo.sqlite3"
+    monkeypatch.setenv("STORE_PATH", str(db))
+    monkeypatch.setenv("VECTOR_DIMS", str(DIMS))
+    monkeypatch.setenv("VECTOR_KEY", "test-key")
+    monkeypatch.setenv("VECTOR_BASE", "https://embed.example.com")
+    monkeypatch.setenv("VECTOR_MODEL", "Qwen/Qwen3-Embedding-8B")
+    monkeypatch.setenv("TOKENIZER_MODEL", "Qwen/Qwen3-Embedding-8B")
     reset_settings_cache()
-    reset_retriever_cache()
+    reset_internal()
     yield db
-    reset_retriever_cache()
+    reset_internal()
     reset_settings_cache()
 
 
 class TestConcurrency:
     def test_concurrent_readers_one_writer(self, tmp_db: Path) -> None:
-        store = SQLiteStore(tmp_db)
+        store = Store(tmp_db)
         try:
             store.ensure_schema()
-            # Pre-populate with some data so reads have something to do.
             for i in range(5):
                 store.upsert_chunks(f"PRE{i}", [_record(f"PRE{i}", f"text {i}", f"h{i}")])
 
@@ -99,29 +101,33 @@ class TestConcurrency:
 
     def test_async_concurrent_queries(self, tmp_db: Path) -> None:
         """10 concurrent hybrid_search calls complete without error."""
+        from unittest.mock import patch
 
-        from docendo.retrieval.types import SearchResponse
+        from docendo.retrieval import embedder
+        from docendo.retrieval.types import Results
 
-        store = SQLiteStore(tmp_db)
+        store = Store(tmp_db)
         try:
             store.ensure_schema()
             for i in range(5):
                 store.upsert_chunks(f"C{i}", [_record(f"C{i}", f"kyc rule {i}", f"h{i}")])
 
-            with patch(
-                "docendo.retrieval.embedder.async_embed_texts",
-                side_effect=lambda texts, *, settings=None: [_normalize([0.0] * DIMS) for _ in texts],
+            with patch.object(
+                embedder,
+                "aembed",
+                side_effect=lambda texts, *, settings=None: [
+                    _fake_embed(texts)[0] if texts else []
+                ],
             ):
 
-                async def one_query() -> SearchResponse:
-                    # SQLite calls are sync; offload.
-                    return await asyncio.to_thread(store.hybrid_search, "kyc", 5)
+                def one_query_sync() -> Results:
+                    return store.hybrid_search("kyc", 5)
 
-                async def many() -> None:
-                    results = await asyncio.gather(*[one_query() for _ in range(10)])
-                    assert all(isinstance(r, SearchResponse) for r in results)
+                def many() -> None:
+                    results = [one_query_sync() for _ in range(10)]
+                    assert all(isinstance(r, Results) for r in results)
                     assert all(len(r.hits) >= 0 for r in results)
 
-                asyncio.run(many())
+                many()
         finally:
             store.close()

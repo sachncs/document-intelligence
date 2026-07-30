@@ -62,7 +62,8 @@ class TestRetrieverCaching:
         monkeypatch.setenv("STORE_PATH", str(db))
         monkeypatch.setenv("VECTOR_DIMS", "4")
         reset_settings_cache()
-        from docendo.retrieval._internal import get, reset as reset_internal
+        from docendo.retrieval._internal import get
+        from docendo.retrieval._internal import reset as reset_internal
 
         reset_internal()
         a = get()

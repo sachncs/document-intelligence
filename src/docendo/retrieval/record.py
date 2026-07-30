@@ -8,8 +8,6 @@ Each row written to ``chunks`` and indexed for retrieval is described by
 
 from __future__ import annotations
 
-from typing import Optional
-
 from pydantic import BaseModel, Field, HttpUrl
 
 
@@ -19,8 +17,8 @@ class ChunkRecord(BaseModel):
     circular_id: str
     title: str
     text: str
-    issue_date: Optional[str] = None
-    topic: Optional[str] = None
+    issue_date: str | None = None
+    topic: str | None = None
     source_url: HttpUrl
     page_estimate_start: int = Field(
         default=1,

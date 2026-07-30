@@ -21,8 +21,8 @@ from unittest.mock import patch
 import pytest
 
 from docendo.config import reset_settings_cache
-from docendo.retrieval._internal import reset_retriever_cache
-from docendo.retrieval.store import SQLiteStore
+from docendo.retrieval._internal import reset as reset_internal
+from docendo.retrieval.store import Store
 
 DIMS = 8
 _RUN_PERF = os.environ.get("BFSI_RUN_PERF") == "1"
@@ -34,19 +34,19 @@ def _normalize(v: list[float]) -> list[float]:
 
 
 def _fake_embed(texts, *, settings=None):
-    out = []
-    for t in texts:
-        h = abs(hash(t))
-        v = [((h >> (i * 8)) & 0xFF) / 127.5 - 1.0 for i in range(DIMS)]
-        out.append(_normalize(v))
-    return out
+    return [
+        _normalize([((abs(hash(t)) >> (i * 8)) & 0xFF) / 127.5 - 1.0 for i in range(DIMS)])
+        for t in texts
+    ]
 
 
-def _populate(store: SQLiteStore, n: int) -> None:
+def _populate(store: Store, n: int) -> None:
     """Insert ``n`` small synthetic chunks (one per circular)."""
     with patch(
-        "docendo.retrieval.embedder.async_embed_texts",
-        side_effect=lambda texts, *, settings=None: _fake_embed(texts),
+        "docendo.retrieval.embedder.aembed",
+        side_effect=lambda texts, *, settings=None: [
+            _fake_embed(texts)[0] for _ in texts
+        ],
     ):
         import asyncio
 
@@ -65,8 +65,8 @@ def _populate(store: SQLiteStore, n: int) -> None:
                             "issue_date": "2024-01-15",
                             "topic": "kyc",
                             "source_url": f"https://rbi.org.in/C{i}",
-                            "page_start": 1,
-                            "page_end": 1,
+                            "page_estimate_start": 1,
+                            "page_estimate_end": 1,
                             "chunk_index": 0,
                             "chunk_count": 1,
                             "extraction_method": "text",
@@ -96,17 +96,17 @@ def _maybe_write_perf_report(name: str, payload: dict) -> None:
 
 @pytest.fixture
 def tmp_db(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
-    db = tmp_path / "rbi.sqlite3"
-    monkeypatch.setenv("BFSI_SQLITE_PATH", str(db))
-    monkeypatch.setenv("BFSI_EMBEDDING_DIMS", str(DIMS))
-    monkeypatch.setenv("BFSI_EMBEDDING_API_KEY", "test-key")
-    monkeypatch.setenv("BFSI_EMBEDDING_API_BASE", "https://embed.example.com")
-    monkeypatch.setenv("BFSI_EMBEDDING_MODEL", "Qwen/Qwen3-Embedding-8B")
-    monkeypatch.setenv("BFSI_TOKENIZER_MODEL", "Qwen/Qwen3-Embedding-8B")
+    db = tmp_path / "docendo.sqlite3"
+    monkeypatch.setenv("STORE_PATH", str(db))
+    monkeypatch.setenv("VECTOR_DIMS", str(DIMS))
+    monkeypatch.setenv("VECTOR_KEY", "test-key")
+    monkeypatch.setenv("VECTOR_BASE", "https://embed.example.com")
+    monkeypatch.setenv("VECTOR_MODEL", "Qwen/Qwen3-Embedding-8B")
+    monkeypatch.setenv("TOKENIZER_MODEL", "Qwen/Qwen3-Embedding-8B")
     reset_settings_cache()
-    reset_retriever_cache()
+    reset_internal()
     yield db
-    reset_retriever_cache()
+    reset_internal()
     reset_settings_cache()
 
 
@@ -114,7 +114,7 @@ def tmp_db(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
 @pytest.mark.skipif(not _RUN_PERF, reason="Set BFSI_RUN_PERF=1 to run benchmarks")
 class TestIngestBudget:
     def test_ingest_100_synthetic_chunks_under_5_seconds(self, tmp_db: Path) -> None:
-        store = SQLiteStore(tmp_db)
+        store = Store(tmp_db)
         try:
             store.ensure_schema()
             start = time.perf_counter()
@@ -124,8 +124,6 @@ class TestIngestBudget:
                 "ingest_100_chunks",
                 {"elapsed_s": elapsed, "chunks": 100},
             )
-            # Local-only synthetic benchmark; the embedding API is mocked.
-            # Budget is 5 seconds on warm cache.
             assert elapsed < 5.0, f"100-chunk ingest took {elapsed:.2f}s (budget 5s)"
         finally:
             store.close()
@@ -135,22 +133,25 @@ class TestIngestBudget:
 @pytest.mark.skipif(not _RUN_PERF, reason="Set BFSI_RUN_PERF=1 to run benchmarks")
 class TestSearchLatency:
     def test_hybrid_search_p95_under_100ms(self, tmp_db: Path) -> None:
-        store = SQLiteStore(tmp_db)
+        store = Store(tmp_db)
         try:
             store.ensure_schema()
             _populate(store, 200)
-            # Warmup: prime the cache and connection.
             for _ in range(5):
                 with patch(
-                    "docendo.retrieval.embedder.async_embed_texts",
-                    side_effect=lambda texts, *, settings=None: _fake_embed(texts),
+                    "docendo.retrieval.embedder.aembed",
+                    side_effect=lambda texts, *, settings=None: [
+                        [0.0] * DIMS for _ in texts
+                    ],
                 ):
                     store.hybrid_search("kyc", 5)
             samples_ms: list[float] = []
             for _ in range(50):
                 with patch(
-                    "docendo.retrieval.embedder.async_embed_texts",
-                    side_effect=lambda texts, *, settings=None: _fake_embed(texts),
+                    "docendo.retrieval.embedder.aembed",
+                    side_effect=lambda texts, *, settings=None: [
+                        [0.0] * DIMS for _ in texts
+                    ],
                 ):
                     start = time.perf_counter()
                     store.hybrid_search("kyc compliance", 5)
@@ -173,16 +174,15 @@ class TestReingestSkip:
         self, tmp_db: Path
     ) -> None:
         """Re-ingesting the same SQLite file makes zero new embedding calls."""
-        store = SQLiteStore(tmp_db)
+        store = Store(tmp_db)
         try:
             store.ensure_schema()
             _populate(store, 50)
 
             with patch(
-                "docendo.retrieval.embedder.async_embed_texts",
-                side_effect=lambda texts, *, settings=None: _fake_embed(texts),
+                "docendo.retrieval.embedder.aembed",
+                side_effect=lambda texts, *, settings=None: [],
             ) as embed_mock:
-                # Simulate the re-ingest skip-check for all 50 chunks.
                 start = time.perf_counter()
                 for i in range(50):
                     store.circular_is_current(f"CIRC{i:04d}", f"h{i}")
@@ -191,10 +191,7 @@ class TestReingestSkip:
                 "reingest_skip_check",
                 {"elapsed_s": elapsed, "chunks": 50, "embedding_calls": embed_mock.call_count},
             )
-            assert embed_mock.call_count == 0, (
-                f"Embedding was called {embed_mock.call_count} times during skip-check "
-                f"(expected zero)"
-            )
+            assert embed_mock.call_count == 0
             assert elapsed < 10.0, f"skip-check took {elapsed:.2f}s (budget 10s)"
         finally:
             store.close()

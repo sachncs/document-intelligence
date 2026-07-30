@@ -25,7 +25,6 @@ from pydantic import HttpUrl
 from docendo.config import reset_settings_cache
 from docendo.retrieval import embedder
 from docendo.retrieval._internal import reset
-from docendo.retrieval.chunker import chunk as chunker_chunk
 from docendo.retrieval.embedder import aembed
 from docendo.retrieval.record import ChunkRecord
 from docendo.retrieval.store import Store, fts_escape, parse_blob

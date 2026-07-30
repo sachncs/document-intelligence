@@ -1,8 +1,8 @@
 """docendo eval subsystem."""
 
-from docendo.eval.judge import Judge, Verdict, ascore, score
 from docendo.eval.cases import Case, load, save
 from docendo.eval.driver import Outcome, run
+from docendo.eval.judge import Judge, Verdict, ascore, score
 from docendo.eval.summarize import Report, dump, render
 
 __all__ = [

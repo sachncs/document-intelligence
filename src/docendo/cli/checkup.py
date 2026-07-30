@@ -6,7 +6,6 @@ import asyncio
 import importlib.resources
 import sqlite3
 import time
-from pathlib import Path
 from typing import Any
 
 from docendo.config import Settings, get_settings
@@ -132,16 +131,21 @@ def run(
     out = stream or sys.stdout
     results: list[tuple[str, bool, str]] = []
 
-    for name, fn in (
-        ("paths", lambda: paths(settings)),
-        ("chat_creds", lambda: chat_creds(settings)),
-        ("tokenizer_match", lambda: tokenizer_match(settings)),
-        ("sqlite_opens", lambda: sqlite_opens(settings)),
-        ("vector_extension", lambda: vector_extension(settings)),
+    check_results: list[tuple[bool, str]] = [
+        paths(settings),
+        chat_creds(settings),
+        tokenizer_match(settings),
+        sqlite_opens(settings),
+        vector_extension(settings),
+    ]
+    for name, (ok, msg) in zip(
+        ("paths", "chat_creds", "tokenizer_match", "sqlite_opens", "vector_extension"),
+        check_results,
     ):
-        results.append((name, *fn()))
+        results.append((name, ok, msg))
     if do_tokenizer:
-        results.append(("tokenizer_load", *tokenizer_load(settings)))
+        ok, msg = tokenizer_load(settings)
+        results.append(("tokenizer_load", ok, msg))
     results.extend(asyncio.run(async_checks(do_embedding, settings)))
 
     width = max(len(name) for name, _, _ in results)

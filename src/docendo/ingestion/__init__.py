@@ -1,5 +1,6 @@
 """docendo ingestion subsystem."""
 
+from docendo.ingestion.ingest import Report, run
 from docendo.ingestion.reader import (
     Page,
     Record,
@@ -15,7 +16,6 @@ from docendo.ingestion.scraper import (
     scrape,
     url,
 )
-from docendo.ingestion.ingest import Report, run
 
 __all__ = [
     "Direction",

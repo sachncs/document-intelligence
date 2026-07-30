@@ -205,4 +205,4 @@ def read(
     )
 
 
-__all__ = ["parse_date", "read", "read_page", "render_page", "sha256_file", "split_page"]
+__all__ = ["Page", "Record", "parse_date", "read", "read_page", "render_page", "sha256_file", "split_page"]

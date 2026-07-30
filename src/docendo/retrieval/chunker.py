@@ -17,7 +17,7 @@ from docendo.exceptions import ConfigurationError
 @lru_cache(maxsize=1)
 def tokenizer() -> Any:
     """Lazy-load and cache the gigatoken tokenizer."""
-    import gigatoken as gt  # type: ignore[import-untyped]
+    import gigatoken as gt
 
     settings = get_settings()
     return gt.Tokenizer(settings.tokenizer_model)

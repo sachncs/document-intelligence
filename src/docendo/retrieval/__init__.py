@@ -9,9 +9,9 @@ Public surface:
 - aembed: LiteLLM embedding client
 """
 
+from docendo.retrieval._internal import get, reset
 from docendo.retrieval.chunker import chunk
 from docendo.retrieval.embedder import aembed
-from docendo.retrieval._internal import get, reset
 from docendo.retrieval.store import Store
 from docendo.retrieval.tools import compare, fetch, recent, search
 from docendo.retrieval.types import (

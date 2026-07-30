@@ -12,7 +12,7 @@ from docendo.cli.checkup import run as run_checkup
 from docendo.config import get_settings
 from docendo.eval.cases import load as load_cases
 from docendo.eval.driver import run as run_eval
-from docendo.eval.summarize import dump, render
+from docendo.eval.summarize import render
 from docendo.exceptions import Error
 from docendo.ingestion.ingest import run as run_ingest
 from docendo.ingestion.scraper import discover
@@ -119,7 +119,7 @@ def report(
 ) -> None:
     """Generate a Markdown report from results.jsonl."""
     from docendo.eval.driver import Outcome
-    from docendo.eval.judge import Verdict_
+    from docendo.eval.judge import Verdict
 
     settings = get_settings()
     raw = []
@@ -137,7 +137,7 @@ def report(
                 grounded_answer=r.get("grounded_answer", ""),
                 grounded_citations=r.get("grounded_citations", []),
                 grounded_hallucination=(
-                    Verdict_(
+                    Verdict(
                         **{
                             k: v
                             for k, v in r["grounded_hallucination"].items()
@@ -149,7 +149,7 @@ def report(
                 ),
                 ungrounded_answer=r.get("ungrounded_answer", ""),
                 ungrounded_hallucination=(
-                    Verdict_(
+                    Verdict(
                         **{
                             k: v
                             for k, v in r["ungrounded_hallucination"].items()

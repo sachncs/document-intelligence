@@ -288,7 +288,6 @@ class Store:
         if not query.strip():
             return Results(query=query, hits=[])
 
-        from docendo.retrieval.embedder import aembed
 
         fts_query = fts_escape(query)
         lexical_rows = self._lex(fts_query, limit * 4)
@@ -421,7 +420,7 @@ class Store:
         ORDER BY issue_date IS NULL, issue_date DESC
         LIMIT ?
         """
-        params = params + (limit,)
+        params = (*params, limit)
         with self._lock:
             rows = self._conn.execute(sql, params).fetchall()
         return [
@@ -443,4 +442,4 @@ class Store:
         return PairResult(a=a, b=b)
 
 
-__all__ = ["Store", "SCHEMA_VERSION", "parse_blob", "fts_escape", "from_row"]
+__all__ = ["SCHEMA_VERSION", "Store", "from_row", "fts_escape", "parse_blob"]

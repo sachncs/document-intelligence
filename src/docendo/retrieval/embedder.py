@@ -16,14 +16,13 @@ import math
 from collections import OrderedDict
 from typing import Any
 
-import litellm  # type: ignore[import-untyped]
+import litellm
 
 from docendo.config import Settings, get_settings
 from docendo.exceptions import EmbeddingProviderError
 
-
 _CACHE_MAX = 8192
-_CACHE: "OrderedDict[tuple[Any, ...], list[float]]" = OrderedDict()
+_CACHE: OrderedDict[tuple[Any, ...], list[float]] = OrderedDict()
 
 
 def hash(text: str) -> str:

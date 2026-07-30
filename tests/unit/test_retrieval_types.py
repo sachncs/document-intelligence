@@ -13,7 +13,6 @@ from docendo.retrieval.types import (
     Listing,
     Lookup,
     Pair,
-    PairResult,
     Query,
     Recent,
     Results,

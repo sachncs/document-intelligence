@@ -16,10 +16,10 @@ from typing import Any
 
 from docendo.retrieval.types import (
     Document,
+    Lookup,
     Pair,
     PairResult,
     Query,
-    Lookup,
     Recent,
 )
 
