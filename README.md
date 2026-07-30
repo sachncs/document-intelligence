@@ -1,6 +1,6 @@
 # docendo
 
-> A grounded RAG agent for BFSI (Banking, Financial Services, Insurance) document intelligence.
+> A grounded RAG agent for document intelligence.
 > Built on Pydantic AI + LiteLLM (MiniMax-M3) + local SQLite + Qwen3-Embedding-8B.
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
@@ -8,7 +8,8 @@
 
 ## What it does
 
-Answer questions about RBI (Reserve Bank of India) circulars, master directions, and policy documents with:
+Answer questions about RBI (Reserve Bank of India) circulars, master
+directions, and policy documents with:
 
 - **Hybrid search** (BM25 + cosine-similarity vector) over a local SQLite database.
 - **Citation-grounded answers** — every claim is backed by a cited circular.
@@ -20,11 +21,11 @@ Answer questions about RBI (Reserve Bank of India) circulars, master directions,
 RBI PDFs → pypdf / vision → gigatoken chunk → LiteLLM embed (Qwen3)
                                             ↓
                           SQLite + FTS5 + sqlite-vector
-                          (data/processed/rbi-circulars.sqlite3)
+                          (data/processed/docendo.sqlite3)
                                             ↓
                   Pydantic AI Agent (MiniMax-M3) + four direct tools
                                             ↓
-                              Structured RBIAnswer
+                              Structured Answer
                                             ↓
                             Streamlit A/B Chat UI
 ```
@@ -34,18 +35,18 @@ Pydantic AI agent:
 
 | Tool | Purpose |
 |---|---|
-| `hybrid_search(query, limit)` | Lexical + vector hybrid search, RRF-fused. |
-| `get_circular(id)` | Fetch all chunks of a single circular. |
-| `list_recent(since, limit)` | List first-chunk rows since an ISO date. |
-| `compare_circulars(id_a, id_b)` | Side-by-side comparison. |
+| `search(query, limit)` | Lexical + vector hybrid search, RRF-fused. |
+| `fetch(id)` | Fetch all chunks of a single circular. |
+| `recent(since, limit)` | List first-chunk rows since an ISO date. |
+| `compare(id_a, id_b)` | Side-by-side comparison. |
 
 ## Quickstart
 
 ```bash
 pip install -e .
 cp .env.example .env
-# Edit .env: MINIMAX_API_KEY + BFSI_EMBEDDING_* (OpenAI-compatible Qwen endpoint).
-docendo doctor
+# Edit .env: CHAT_KEY + VECTOR_* (OpenAI-compatible Qwen endpoint).
+docendo checkup
 docendo fetch
 docendo ingest
 docendo eval --limit 5
@@ -75,7 +76,7 @@ Full docs: `mkdocs serve` → http://127.0.0.1:8000
 | `docs/architecture.md` | Diagram, components, data model, concurrency. |
 | `docs/evaluation.md` | Pipeline, judge, report contents. |
 | `docs/security.md` | Secrets, network egress, FTS5 hardening, CVE. |
-| `docs/known-gaps.md` | What's deferred. |
+| `KNOWN_GAPS.md` | What's deferred. |
 | `docs/performance.md` | Performance budgets and how to re-run. |
 
 ## Development
@@ -83,10 +84,11 @@ Full docs: `mkdocs serve` → http://127.0.0.1:8000
 ```bash
 pytest tests/unit                                              # unit tests
 pytest tests/integration -m "not perf"                         # offline integration
-docendo doctor --no-embedding --no-tokenizer                  # offline diagnostics
-ruff check src tests                                           # lint
-ruff format src tests                                          # format
-mypy src/docendo                                              # type check
+RUN_PERF=1 pytest tests/perf                                  # benchmarks
+docendo checkup --no-embedding --no-tokenizer                 # offline diagnostics
+ruff check src tests                                          # lint
+ruff format src tests                                         # format
+mypy src/docendo                                             # type check
 ```
 
 ## License

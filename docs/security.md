@@ -4,9 +4,9 @@
 
 `docendo` reads four secrets at runtime:
 
-- `MINIMAX_API_KEY` — the chat model API key.
-- `BFSI_EMBEDDING_API_KEY` — the embedding endpoint API key.
-- `BFSI_EMBEDDING_API_BASE` — the OpenAI-compatible base URL serving
+- `CHAT_KEY` — the chat model API key.
+- `VECTOR_KEY` — the embedding endpoint API key.
+- `VECTOR_BASE` — the OpenAI-compatible base URL serving
   Qwen3-Embedding-8B.
 - (future) bearer token for the authenticated MCP server.
 
@@ -33,7 +33,7 @@ No other endpoints are contacted. No telemetry leaves the host.
 
 - The SQLite database contains indexed chunks of public RBI documents. No
   user data is stored.
-- Restrict filesystem permissions: `chmod 600 data/processed/rbi-circulars.sqlite3`.
+- Restrict filesystem permissions: `chmod 600 data/processed/docendo.sqlite3`.
 - Back up before any manual rebuild; there is no recovery path from a
   truncated write.
 
@@ -43,7 +43,7 @@ User queries are passed to the FTS5 `MATCH` operator wrapped in double
 quotes, with embedded double quotes doubled. This prevents FTS5 syntax
 errors from operator injection (`AND`, `OR`, `NOT`) and limits the
 searchable surface to literal tokens. See
-`src/docendo/retrieval/sqlite_store.py::SQLiteStore._fts_escape`.
+`src/docendo/retrieval/store.py::Store::fts_escape`.
 
 ## Embedding cache
 

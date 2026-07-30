@@ -1,4 +1,4 @@
-.PHONY: help install dev test lint format typecheck pre-commit docs clean fetch ingest setup-inference deploy-tools deploy-agent smoke-mcp eval report demo all
+.PHONY: help install dev test test-int test-all lint format typecheck pre-commit docs docs-serve clean fetch ingest eval report demo cases checkup checkup-fast all
 
 PYTHON ?= python3
 PIP ?= $(PYTHON) -m pip
@@ -13,14 +13,17 @@ dev:  ## Install package with dev extras
 	$(PIP) install -e ".[dev]"
 	$(PYTHON) -m pre_commit install
 
-test:  ## Run unit tests
+test:  ## Run unit tests (no network)
 	$(PYTHON) -m pytest tests/unit -v
 
-test-integration:  ## Run integration tests (requires live services)
-	$(PYTHON) -m pytest tests/integration -v -m integration
+test-int:  ## Run integration tests (offline, mocked)
+	$(PYTHON) -m pytest tests/integration -v -m "not perf"
+
+test-perf:  ## Run performance benchmarks (opt-in, slow)
+	RUN_PERF=1 $(PYTHON) -m pytest tests/perf -v
 
 test-all:  ## Run all tests
-	$(PYTHON) -m pytest tests -v
+	$(PYTHON) -m pytest tests -v -m "not perf"
 
 lint:  ## Run ruff linter
 	$(PYTHON) -m ruff check src tests
@@ -48,28 +51,25 @@ clean:  ## Remove build artifacts
 fetch:  ## Fetch RBI documents
 	docendo fetch
 
-ingest:  ## Ingest documents into Elasticsearch
+ingest:  ## Extract, chunk, embed, store in SQLite
 	docendo ingest
 
-setup-inference:  ## Setup ELSER inference endpoint
-	docendo setup-inference
-
-deploy-tools:  ## Deploy Agent Builder tools to Kibana
-	docendo deploy-tools
-
-deploy-agent:  ## Deploy Agent Builder agent to Kibana
-	docendo deploy-agent
-
-smoke-mcp:  ## Smoke-test MCP connection
-	docendo smoke-mcp
-
-eval:  ## Run evaluation
+eval:  ## Run the evaluation suite
 	docendo eval
 
-report:  ## Generate eval report
+report:  ## Generate a Markdown report from results.jsonl
 	docendo report
 
-demo:  ## Launch Streamlit demo
+demo:  ## Launch the Streamlit A/B demo
 	docendo demo
 
-all: dev lint typecheck test  ## Full local check
+cases:  ## Show eval-dataset summary stats
+	docendo cases
+
+checkup:  ## Run local diagnostics (SQLite, vector ext, embedding/tokenizer)
+	docendo checkup
+
+checkup-fast:  ## Offline diagnostics (skip embedding + tokenizer probes)
+	docendo checkup --no-embedding --no-tokenizer
+
+all: dev lint typecheck test  ## Full local check (unit + integration)

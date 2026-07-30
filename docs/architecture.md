@@ -7,7 +7,7 @@ RBI PDFs ── pypdf/vision-extract ── gigatoken chunk ── LiteLLM embed
                                           │
                                           ▼
                        SQLite + FTS5 + sqlite-vector
-                       (data/processed/rbi-circulars.sqlite3)
+                       (data/processed/docendo.sqlite3)
                                           │
                                           ▼
                   Pydantic AI Agent (MiniMax-M3) + four direct tools

@@ -16,7 +16,7 @@ to re-run the benchmark suite.
 ## How to re-run
 
 ```bash
-BFSI_RUN_PERF=1 pytest tests/perf -v
+RUN_PERF=1 pytest tests/perf -v
 ```
 
 The benchmarks write a JSON report to `reports/perf.json` for trend
@@ -40,6 +40,6 @@ Benchmarks are skipped by default so the default CI lane stays under
 
 ## Regression guard
 
-When `BFSI_RUN_PERF=1` is set, a >25% regression against the previous
+When `RUN_PERF=1` is set, a >25% regression against the previous
 benchmark report (`reports/perf.json` from the previous run) fails CI.
 To reset the baseline, delete `reports/perf.json`.
