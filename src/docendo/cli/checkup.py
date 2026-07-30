@@ -138,10 +138,8 @@ def run(
         sqlite_opens(settings),
         vector_extension(settings),
     ]
-    for name, (ok, msg) in zip(
-        ("paths", "chat_creds", "tokenizer_match", "sqlite_opens", "vector_extension"),
-        check_results,
-    ):
+    names = ("paths", "chat_creds", "tokenizer_match", "sqlite_opens", "vector_extension")
+    for name, (ok, msg) in zip(names, check_results, strict=False):
         results.append((name, ok, msg))
     if do_tokenizer:
         ok, msg = tokenizer_load(settings)

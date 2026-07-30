@@ -70,6 +70,8 @@ class TestSettings:
 
     def test_default_paths(self, monkeypatch) -> None:
         # Defaults from the new env-driven Settings.
+        monkeypatch.delenv("STORE_PATH", raising=False)
+        monkeypatch.delenv("VECTOR_DIMS", raising=False)
         s = Settings()
         assert s.store_path.name == "docendo.sqlite3"
         assert s.chunk_size == 384

@@ -1,11 +1,11 @@
 """Performance budget benchmarks.
 
-All benchmarks skip unless ``BFSI_RUN_PERF=1`` is set in the environment,
+All benchmarks skip unless ``RUN_PERF=1`` is set in the environment,
 so they never run in the default CI lane.
 
 Re-run with::
 
-    BFSI_RUN_PERF=1 pytest tests/perf -v
+    RUN_PERF=1 pytest tests/perf -v
 
 Results are emitted to ``reports/perf.json`` for trend tracking.
 """
@@ -25,7 +25,7 @@ from docendo.retrieval._internal import reset as reset_internal
 from docendo.retrieval.store import Store
 
 DIMS = 8
-_RUN_PERF = os.environ.get("BFSI_RUN_PERF") == "1"
+_RUN_PERF = os.environ.get("RUN_PERF") == "1"
 
 
 def _normalize(v: list[float]) -> list[float]:
@@ -111,7 +111,7 @@ def tmp_db(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
 
 
 @pytest.mark.perf
-@pytest.mark.skipif(not _RUN_PERF, reason="Set BFSI_RUN_PERF=1 to run benchmarks")
+@pytest.mark.skipif(not _RUN_PERF, reason="Set RUN_PERF=1 to run benchmarks")
 class TestIngestBudget:
     def test_ingest_100_synthetic_chunks_under_5_seconds(self, tmp_db: Path) -> None:
         store = Store(tmp_db)
@@ -130,7 +130,7 @@ class TestIngestBudget:
 
 
 @pytest.mark.perf
-@pytest.mark.skipif(not _RUN_PERF, reason="Set BFSI_RUN_PERF=1 to run benchmarks")
+@pytest.mark.skipif(not _RUN_PERF, reason="Set RUN_PERF=1 to run benchmarks")
 class TestSearchLatency:
     def test_hybrid_search_p95_under_100ms(self, tmp_db: Path) -> None:
         store = Store(tmp_db)
@@ -168,7 +168,7 @@ class TestSearchLatency:
 
 
 @pytest.mark.perf
-@pytest.mark.skipif(not _RUN_PERF, reason="Set BFSI_RUN_PERF=1 to run benchmarks")
+@pytest.mark.skipif(not _RUN_PERF, reason="Set RUN_PERF=1 to run benchmarks")
 class TestReingestSkip:
     def test_reingest_of_unchanged_corpus_under_10_seconds(
         self, tmp_db: Path

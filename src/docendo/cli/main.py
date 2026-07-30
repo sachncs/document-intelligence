@@ -11,7 +11,9 @@ import typer
 from docendo.cli.checkup import run as run_checkup
 from docendo.config import get_settings
 from docendo.eval.cases import load as load_cases
+from docendo.eval.driver import Outcome
 from docendo.eval.driver import run as run_eval
+from docendo.eval.judge import Verdict
 from docendo.eval.summarize import render
 from docendo.exceptions import Error
 from docendo.ingestion.ingest import run as run_ingest
@@ -112,6 +114,26 @@ def eval(
     )
 
 
+def _verdict_from_jsonl(d: dict[str, object] | None) -> Verdict | None:
+    if d is None:
+        return None
+    # JSONL to_dict() includes derived properties (hallucination_rate, grounding_score)
+    # that the Verdict dataclass doesn't accept as constructor args.
+    claims_obj = d.get("claims") or []
+    claims = list(claims_obj) if isinstance(claims_obj, list) else []
+    total = d.get("total_claims", 0)
+    supported_v = d.get("supported", 0)
+    contradicted_v = d.get("contradicted", 0)
+    extra_v = d.get("extra", 0)
+    return Verdict(
+        claims=claims,
+        total_claims=int(total) if isinstance(total, (int, float)) else 0,
+        supported=int(supported_v) if isinstance(supported_v, (int, float)) else 0,
+        contradicted=int(contradicted_v) if isinstance(contradicted_v, (int, float)) else 0,
+        extra=int(extra_v) if isinstance(extra_v, (int, float)) else 0,
+    )
+
+
 @app.command()
 def report(
     results: Path = typer.Argument(..., exists=True, dir_okay=False, readable=True),
@@ -119,7 +141,6 @@ def report(
 ) -> None:
     """Generate a Markdown report from results.jsonl."""
     from docendo.eval.driver import Outcome
-    from docendo.eval.judge import Verdict
 
     settings = get_settings()
     raw = []
@@ -136,29 +157,9 @@ def report(
                 metadata=r.get("metadata", {}),
                 grounded_answer=r.get("grounded_answer", ""),
                 grounded_citations=r.get("grounded_citations", []),
-                grounded_hallucination=(
-                    Verdict(
-                        **{
-                            k: v
-                            for k, v in r["grounded_hallucination"].items()
-                            if k != "claims"
-                        }
-                    )
-                    if r.get("grounded_hallucination")
-                    else None
-                ),
+                grounded_hallucination=_verdict_from_jsonl(r.get("grounded_hallucination")),
                 ungrounded_answer=r.get("ungrounded_answer", ""),
-                ungrounded_hallucination=(
-                    Verdict(
-                        **{
-                            k: v
-                            for k, v in r["ungrounded_hallucination"].items()
-                            if k != "claims"
-                        }
-                    )
-                    if r.get("ungrounded_hallucination")
-                    else None
-                ),
+                ungrounded_hallucination=_verdict_from_jsonl(r.get("ungrounded_hallucination")),
             )
         )
     target = out or (settings.reports_dir / "eval_report.md")

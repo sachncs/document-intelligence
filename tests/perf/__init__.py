@@ -1,4 +1,4 @@
 """Performance budget benchmarks.
 
-Benchmarks are gated by ``BFSI_RUN_PERF=1``.
+Benchmarks are gated by ``RUN_PERF=1``.
 """
