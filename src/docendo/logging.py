@@ -1,6 +1,6 @@
 """Structured logging setup.
 
-Configures a single JSON-friendly logger per the project's `BFSI_LOG_LEVEL`
+Configures a single JSON-friendly logger per the project's ``LOG_LEVEL``
 env var. Idempotent — safe to call multiple times.
 """
 
@@ -34,8 +34,7 @@ def configure_logging(level: str = "INFO") -> None:
     root.addHandler(handler)
     root.setLevel(numeric_level)
 
-    # Quiet noisy third-party loggers
-    for noisy in ("httpx", "httpcore", "elastic_transport", "litellm"):
+    for noisy in ("httpx", "httpcore", "litellm"):
         logging.getLogger(noisy).setLevel(logging.WARNING)
 
     _CONFIGURED = True

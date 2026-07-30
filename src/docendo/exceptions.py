@@ -1,36 +1,48 @@
-"""Custom exception hierarchy."""
+"""docendo custom exception hierarchy."""
 
 
 from __future__ import annotations
 
 
-class BFSIRBIError(Exception):
+class Error(Exception):
     """Root exception for all docendo errors."""
 
 
-class ConfigurationError(BFSIRBIError):
+class ConfigurationError(Error):
     """Missing or invalid configuration."""
 
 
-class ScrapingError(BFSIRBIError):
-    """Failed to scrape RBI site."""
+class ScrapingError(Error):
+    """Failed to scrape the upstream site."""
 
 
-class PDFExtractionError(BFSIRBIError):
+class PDFExtractionError(Error):
     """Failed to extract text from a PDF (both text and vision paths failed)."""
 
 
-class VisionAPIError(BFSIRBIError):
+class VisionAPIError(Error):
     """Vision API call failed or returned invalid response."""
 
 
-class EmbeddingProviderError(BFSIRBIError):
+class EmbeddingProviderError(Error):
     """Embedding provider call failed or returned invalid output."""
 
 
-class StorageError(BFSIRBIError):
+class StorageError(Error):
     """SQLite or other storage backend failed."""
 
 
-class EvalError(BFSIRBIError):
+class EvalError(Error):
     """Evaluation pipeline failed."""
+
+
+__all__ = [
+    "ConfigurationError",
+    "EmbeddingProviderError",
+    "Error",
+    "EvalError",
+    "PDFExtractionError",
+    "ScrapingError",
+    "StorageError",
+    "VisionAPIError",
+]

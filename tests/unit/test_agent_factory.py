@@ -6,18 +6,18 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from docendo.agent import GRCIT_SYSTEM_PROMPT, _cached_litellm_model, _tool_functions, make_agent
+from docendo.agent import SYSTEM_PROMPT, agent, model, reset, tools
 from docendo.config import reset_settings_cache
 
 
 @pytest.fixture(autouse=True)
 def _env(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("MINIMAX_API_KEY", "test-key-not-real")
-    monkeypatch.setenv("BFSI_EMBEDDING_API_KEY", "test-key")
-    monkeypatch.setenv("BFSI_EMBEDDING_API_BASE", "https://embed.example.com")
-    monkeypatch.setenv("BFSI_EMBEDDING_MODEL", "Qwen/Qwen3-Embedding-8B")
-    monkeypatch.setenv("BFSI_TOKENIZER_MODEL", "Qwen/Qwen3-Embedding-8B")
-    monkeypatch.setenv("BFSI_EMBEDDING_DIMS", "4")
+    monkeypatch.setenv("CHAT_KEY", "test-key-not-real")
+    monkeypatch.setenv("VECTOR_KEY", "test-key")
+    monkeypatch.setenv("VECTOR_BASE", "https://embed.example.com")
+    monkeypatch.setenv("VECTOR_MODEL", "Qwen/Qwen3-Embedding-8B")
+    monkeypatch.setenv("TOKENIZER_MODEL", "Qwen/Qwen3-Embedding-8B")
+    monkeypatch.setenv("VECTOR_DIMS", "4")
     reset_settings_cache()
     yield
     reset_settings_cache()
@@ -25,72 +25,73 @@ def _env(monkeypatch: pytest.MonkeyPatch) -> None:
 
 class TestAgentFactory:
     def test_grounded_has_four_tools(self) -> None:
-        with patch("docendo.agent.Agent") as mock_agent:
+        with patch("docendo.agent.PydanticAgent") as mock_agent:
             mock_agent.return_value = MagicMock()
-            make_agent(grounded=True)
+            agent(grounded=True)
         tools_arg = mock_agent.call_args.kwargs.get("tools")
         assert tools_arg is not None
         assert len(tools_arg) == 4
         names = {t.__name__ for t in tools_arg}
-        assert names == {
-            "hybrid_search",
-            "get_circular",
-            "list_recent",
-            "compare_circulars",
-        }
+        assert names == {"search", "fetch", "recent", "compare"}
 
     def test_ungrounded_has_no_tools(self) -> None:
-        with patch("docendo.agent.Agent") as mock_agent:
+        with patch("docendo.agent.PydanticAgent") as mock_agent:
             mock_agent.return_value = MagicMock()
-            make_agent(grounded=False)
+            agent(grounded=False)
         tools_arg = mock_agent.call_args.kwargs.get("tools")
         assert tools_arg == []
 
-    def test_grounded_uses_rbi_answer_output_type(self) -> None:
-        with patch("docendo.agent.Agent") as mock_agent:
-            mock_agent.return_value = MagicMock()
-            make_agent(grounded=True)
-        from docendo.models import RBIAnswer
+    def test_grounded_uses_answer_output_type(self) -> None:
+        from docendo.models import Answer
 
-        assert mock_agent.call_args.kwargs.get("output_type") is RBIAnswer
+        with patch("docendo.agent.PydanticAgent") as mock_agent:
+            mock_agent.return_value = MagicMock()
+            agent(grounded=True)
+        assert mock_agent.call_args.kwargs.get("output_type") is Answer
 
     def test_system_prompt_mentions_tools(self) -> None:
-        assert "hybrid_search" in GRCIT_SYSTEM_PROMPT
-        assert "get_circular" in GRCIT_SYSTEM_PROMPT
-        assert "list_recent" in GRCIT_SYSTEM_PROMPT
-        assert "compare_circulars" in GRCIT_SYSTEM_PROMPT
+        assert "search" in SYSTEM_PROMPT
+        assert "fetch" in SYSTEM_PROMPT
+        assert "recent" in SYSTEM_PROMPT
+        assert "compare" in SYSTEM_PROMPT
 
 
 class TestRetrieverCaching:
     def test_retriever_is_cached(self, tmp_path, monkeypatch) -> None:
-        """Two calls to get_retriever with the same path return the same store."""
-        db = tmp_path / "rbi.sqlite3"
-        monkeypatch.setenv("BFSI_SQLITE_PATH", str(db))
-        monkeypatch.setenv("BFSI_EMBEDDING_DIMS", "4")
+        db = tmp_path / "docendo.sqlite3"
+        monkeypatch.setenv("STORE_PATH", str(db))
+        monkeypatch.setenv("VECTOR_DIMS", "4")
         reset_settings_cache()
-        from docendo.retrieval._internal import get_retriever, reset_retriever_cache
+        from docendo.retrieval._internal import get, reset as reset_internal
 
-        reset_retriever_cache()
-        a = get_retriever()
-        b = get_retriever()
+        reset_internal()
+        a = get()
+        b = get()
         assert a is b
-        reset_retriever_cache()
+        reset_internal()
 
 
 class TestLiteLLMSingleton:
-    def test_litellm_model_is_singleton(self) -> None:
-        _cached_litellm_model.cache_clear()
-        a = _cached_litellm_model()
-        b = _cached_litellm_model()
+    def test_model_is_singleton(self) -> None:
+        reset()
+        a = model()
+        b = model()
         assert a is b
+        reset()
+
+    def test_settings_change_invalidates_model(self) -> None:
+        """When the chat id changes, model() rebuilds."""
+        from docendo.config import reset_settings_cache
+
+        reset()
+        reset_settings_cache()
+        a = model()
+        # Different chat_url -> different cached instance.
+        b = model("https://other.example.com", "k", "Other")
+        assert a is not b
 
 
 class TestToolFunctions:
     def test_tool_function_names(self) -> None:
-        names = {t.__name__ for t in _tool_functions()}
-        assert names == {
-            "hybrid_search",
-            "get_circular",
-            "list_recent",
-            "compare_circulars",
-        }
+        names = {t.__name__ for t in tools()}
+        assert names == {"search", "fetch", "recent", "compare"}

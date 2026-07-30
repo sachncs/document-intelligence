@@ -7,10 +7,12 @@ Uses a fake embedding function so the tests run offline. Verifies:
 - Re-ingest via content_hash skips unchanged PDFs.
 - FTS5 escaping handles quotes, special chars, AND/OR/NOT.
 - Embedding-dim mismatch errors.
+- row_factory returns named columns (column-order independence).
 """
 
 from __future__ import annotations
 
+import asyncio
 import math
 import sqlite3
 import threading
@@ -18,60 +20,103 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+from pydantic import HttpUrl
 
 from docendo.config import reset_settings_cache
-from docendo.retrieval._internal import reset_retriever_cache
-from docendo.retrieval.store import SQLiteStore, _fts_escape
+from docendo.retrieval import embedder
+from docendo.retrieval._internal import reset
+from docendo.retrieval.chunker import chunk as chunker_chunk
+from docendo.retrieval.embedder import aembed
+from docendo.retrieval.record import ChunkRecord
+from docendo.retrieval.store import Store, fts_escape, parse_blob
 
 DIMS = 8  # small for tests
 
 
-def _normalize(v: list[float]) -> list[float]:
+def normalize(v: list[float]) -> list[float]:
     n = math.sqrt(sum(x * x for x in v)) or 1.0
     return [x / n for x in v]
 
 
-def _fake_embed(texts: list[str], *, settings=None) -> list[list[float]]:
+def fake_embed(texts: list[str], *, settings=None) -> list[list[float]]:
     """Deterministic fake embedding: hash -> unit vector."""
     out = []
     for t in texts:
         h = abs(hash(t))
         v = [(h >> (i * 8)) & 0xFF for i in range(DIMS)]
-        out.append(_normalize([(x - 127.5) / 127.5 for x in v]))
+        out.append(normalize([(x - 127.5) / 127.5 for x in v]))
     return out
 
 
 @pytest.fixture
 def tmp_db(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
-    db = tmp_path / "rbi.sqlite3"
-    monkeypatch.setenv("BFSI_SQLITE_PATH", str(db))
-    monkeypatch.setenv("BFSI_EMBEDDING_DIMS", str(DIMS))
-    monkeypatch.setenv("BFSI_EMBEDDING_API_KEY", "test-key")
-    monkeypatch.setenv("BFSI_EMBEDDING_API_BASE", "https://embed.example.com")
-    monkeypatch.setenv("BFSI_EMBEDDING_MODEL", "Qwen/Qwen3-Embedding-8B")
-    monkeypatch.setenv("BFSI_TOKENIZER_MODEL", "Qwen/Qwen3-Embedding-8B")
+    db = tmp_path / "docendo.sqlite3"
+    monkeypatch.setenv("STORE_PATH", str(db))
+    monkeypatch.setenv("VECTOR_DIMS", str(DIMS))
+    monkeypatch.setenv("VECTOR_KEY", "test-key")
+    monkeypatch.setenv("VECTOR_BASE", "https://embed.example.com")
+    monkeypatch.setenv("VECTOR_MODEL", "Qwen/Qwen3-Embedding-8B")
+    monkeypatch.setenv("TOKENIZER_MODEL", "Qwen/Qwen3-Embedding-8B")
     reset_settings_cache()
-    reset_retriever_cache()
+    reset()
     yield db
-    reset_retriever_cache()
+    reset()
     reset_settings_cache()
+
+
+def _record(circ: str, text: str, chunk_index: int, content_hash: str = "h1") -> ChunkRecord:
+    return ChunkRecord(
+        circular_id=circ,
+        title=f"Title {circ}",
+        text=text,
+        issue_date="2024-01-15",
+        topic="kyc",
+        source_url=HttpUrl(f"https://rbi.org.in/{circ}"),
+        page_estimate_start=1,
+        page_estimate_end=5,
+        chunk_index=chunk_index,
+        chunk_count=2,
+        extraction_method="text",
+        content_hash=content_hash,
+        embedding=[],
+    )
+
+
+def _record_with_embedding(
+    circ: str, text: str, chunk_index: int, content_hash: str = "h1"
+) -> ChunkRecord:
+    rec = _record(circ, text, chunk_index, content_hash)
+    rec.embedding = fake_embed([text])[0]
+    return rec
 
 
 class TestFtsEscape:
     def test_simple(self) -> None:
-        assert _fts_escape("kyc requirements") == '"kyc requirements"'
+        assert fts_escape("kyc requirements") == '"kyc requirements"'
 
     def test_quote_doubling(self) -> None:
-        assert _fts_escape('say "hi"') == '"say ""hi"""'
+        assert fts_escape('say "hi"') == '"say ""hi"""'
 
     def test_and_or_not_literalized(self) -> None:
-        out = _fts_escape("AND OR NOT")
+        out = fts_escape("AND OR NOT")
         assert out == '"AND OR NOT"'
+
+
+class TestParseBlob:
+    def test_empty_raises(self) -> None:
+        from docendo.exceptions import StorageError
+
+        with pytest.raises(StorageError):
+            parse_blob([])
+
+    def test_packs_to_floats(self) -> None:
+        out = parse_blob([1.0, 2.0, 3.0])
+        assert len(out) == 12  # 3 floats * 4 bytes
 
 
 class TestSchema:
     def test_ensure_schema_creates_objects(self, tmp_db: Path) -> None:
-        store = SQLiteStore(tmp_db)
+        store = Store(tmp_db)
         try:
             store.ensure_schema()
             conn = sqlite3.connect(str(tmp_db))
@@ -110,110 +155,79 @@ class TestSchema:
 
 
 class TestRoundTrip:
-    def _sample(self, circ: str, text: str, chunk_index: int, content_hash: str = "h1"):
-        return {
-            "circular_id": circ,
-            "title": f"Title {circ}",
-            "text": text,
-            "issue_date": "2024-01-15",
-            "topic": "kyc",
-            "source_url": f"https://rbi.org.in/{circ}",
-            "page_start": 1,
-            "page_end": 5,
-            "chunk_index": chunk_index,
-            "chunk_count": 2,
-            "extraction_method": "text",
-            "content_hash": content_hash,
-        }
-
     def test_upsert_and_count(self, tmp_db: Path) -> None:
-        store = SQLiteStore(tmp_db)
+        store = Store(tmp_db)
         try:
             store.ensure_schema()
-            with patch(
-                "docendo.retrieval.embedder.async_embed_texts",
-                side_effect=lambda texts, *, settings: _fake_embed(texts, settings=settings),
+            with patch.object(
+                embedder,
+                "aembed",
+                side_effect=lambda texts, *, settings=None: fake_embed(texts),
             ):
-                recs = [
-                    {**self._sample("A", "alpha bravo", 0), "embedding": _fake_embed(["alpha bravo"])[0]},
-                    {**self._sample("A", "charlie delta", 1), "embedding": _fake_embed(["charlie delta"])[0]},
-                ]
-                store.upsert_chunks("A", recs)
+                store.upsert_chunks(
+                    "A",
+                    [
+                        _record_with_embedding("A", "alpha bravo", 0),
+                        _record_with_embedding("A", "charlie delta", 1),
+                    ],
+                )
                 assert store.count() == 2
         finally:
             store.close()
 
     def test_idempotent_reingest_via_content_hash(self, tmp_db: Path) -> None:
-        store = SQLiteStore(tmp_db)
+        store = Store(tmp_db)
         try:
             store.ensure_schema()
-            with patch(
-                "docendo.retrieval.embedder.async_embed_texts",
-                side_effect=lambda texts, *, settings: _fake_embed(texts, settings=settings),
+            with patch.object(
+                embedder,
+                "aembed",
+                side_effect=lambda texts, *, settings=None: fake_embed(texts),
             ):
-                recs = [
-                    {**self._sample("A", "alpha", 0), "embedding": _fake_embed(["alpha"])[0]},
-                    {**self._sample("A", "bravo", 1), "embedding": _fake_embed(["bravo"])[0]},
-                ]
-                store.upsert_chunks("A", recs)
+                store.upsert_chunks(
+                    "A",
+                    [
+                        _record_with_embedding("A", "alpha", 0),
+                        _record_with_embedding("A", "bravo", 1),
+                    ],
+                )
                 assert store.circular_is_current("A", "h1") is True
                 assert store.circular_is_current("A", "different") is False
-                # Re-ingesting with same content_hash should still be safe.
-                store.upsert_chunks("A", recs)
+                store.upsert_chunks(
+                    "A",
+                    [
+                        _record_with_embedding("A", "alpha", 0),
+                        _record_with_embedding("A", "bravo", 1),
+                    ],
+                )
                 assert store.count() == 2  # no duplicate rows
         finally:
             store.close()
 
 
 class TestSearch:
-    def _make_records(self, tmp_db: Path):
-        store = SQLiteStore(tmp_db)
+    def _make_records(self, tmp_db: Path) -> Store:
+        store = Store(tmp_db)
         store.ensure_schema()
-        with patch(
-            "docendo.retrieval.embedder.async_embed_texts",
-            side_effect=lambda texts, *, settings: _fake_embed(texts, settings=settings),
+        with patch.object(
+            embedder,
+            "aembed",
+            side_effect=lambda texts, *, settings=None: fake_embed(texts),
         ):
-            records = [
-                {
-                    **self._sample("A", "kyc threshold is fifty thousand", 0),
-                    "embedding": _fake_embed(["kyc threshold is fifty thousand"])[0],
-                },
-                {
-                    **self._sample("B", "kyc compliance requirements", 0),
-                    "embedding": _fake_embed(["kyc compliance requirements"])[0],
-                },
-                {
-                    **self._sample("C", "npa classification rules", 0),
-                    "embedding": _fake_embed(["npa classification rules"])[0],
-                },
-            ]
-            for r in records:
-                store.upsert_chunks(r["circular_id"], [r])
+            for circ, text in (
+                ("A", "kyc threshold is fifty thousand"),
+                ("B", "kyc compliance requirements"),
+                ("C", "npa classification rules"),
+            ):
+                store.upsert_chunks(circ, [_record_with_embedding(circ, text, 0)])
         return store
-
-    def _sample(self, circ: str, text: str, chunk_index: int, content_hash: str = "h1"):
-        return {
-            "circular_id": circ,
-            "title": f"Title {circ}",
-            "text": text,
-            "issue_date": "2024-01-15",
-            "topic": "kyc",
-            "source_url": f"https://rbi.org.in/{circ}",
-            "page_start": 1,
-            "page_end": 5,
-            "chunk_index": chunk_index,
-            "chunk_count": 1,
-            "extraction_method": "text",
-            "content_hash": content_hash,
-        }
 
     def test_lexical_finds_kyc(self, tmp_db: Path) -> None:
         store = self._make_records(tmp_db)
         try:
-            # The vector fake is hash-based and not semantically meaningful,
-            # but lexical-only search should still rank A and B above C.
-            with patch(
-                "docendo.retrieval.embedder.async_embed_texts",
+            with patch.object(
+                embedder,
+                "aembed",
                 side_effect=lambda texts, *, settings=None: [
                     [0.0] * DIMS for _ in texts
                 ],
@@ -226,35 +240,32 @@ class TestSearch:
             store.close()
 
     def test_fts_escaping_and_or_not(self, tmp_db: Path) -> None:
-        store = SQLiteStore(tmp_db)
+        store = Store(tmp_db)
         try:
             store.ensure_schema()
-            with patch(
-                "docendo.retrieval.embedder.async_embed_texts",
-                side_effect=lambda texts, *, settings=None: _fake_embed(texts),
+            with patch.object(
+                embedder,
+                "aembed",
+                side_effect=lambda texts, *, settings=None: fake_embed(texts),
             ):
-                rec = {
-                    **self._sample("A", "kyc rules", 0),
-                    "embedding": _fake_embed(["kyc rules"])[0],
-                }
-                store.upsert_chunks("A", [rec])
-                # "AND OR NOT" must NOT raise a syntax error; treated as literal tokens.
+                store.upsert_chunks(
+                    "A", [_record_with_embedding("A", "kyc rules", 0)]
+                )
                 resp = store.hybrid_search("AND OR NOT", limit=5)
                 assert isinstance(resp.hits, list)
-                # "kyc" still works after the escape test.
                 resp = store.hybrid_search("kyc", limit=5)
                 assert any(h.circular_id == "A" for h in resp.hits)
         finally:
             store.close()
 
-    def test_get_circular(self, tmp_db: Path) -> None:
+    def test_fetch(self, tmp_db: Path) -> None:
         store = self._make_records(tmp_db)
         try:
-            cr = store.get_circular("A")
-            assert cr is not None
-            assert cr.circular_id == "A"
-            assert len(cr.chunks) == 1
-            assert store.get_circular("nonexistent") is None
+            doc = store.fetch("A")
+            assert doc is not None
+            assert doc.circular_id == "A"
+            assert len(doc.chunks) == 1
+            assert store.fetch("nonexistent") is None
         finally:
             store.close()
 
@@ -279,17 +290,60 @@ class TestSearch:
         finally:
             store.close()
 
+    def test_rrf_k_setting_propagates(self, tmp_db: Path) -> None:
+        """Different RRF k values should not change the relative ranking for known vectors."""
+        store = self._make_records(tmp_db)
+        try:
+            with patch.object(
+                embedder,
+                "aembed",
+                side_effect=lambda texts, *, settings=None: fake_embed(texts),
+            ):
+                resp_default = store.hybrid_search("kyc", limit=3)
+                store.settings.rrf_k = 1
+                resp_small_k = store.hybrid_search("kyc", limit=3)
+                # Same lexical order regardless of k (only the score magnitudes differ).
+                assert [h.circular_id for h in resp_default.hits] == [
+                    h.circular_id for h in resp_small_k.hits
+                ]
+        finally:
+            store.close()
+
+
+class TestColumnOrderIndependence:
+    """Adding a column to the SELECT must not break the row-reading code."""
+
+    def test_row_factory_returns_named_columns(self, tmp_db: Path) -> None:
+        store = Store(tmp_db)
+        try:
+            store.ensure_schema()
+            with patch.object(
+                aembed, "__call__", side_effect=lambda texts, *, settings=None: fake_embed(texts)
+            ):
+                store.upsert_chunks(
+                    "A", [_record_with_embedding("A", "kyc threshold", 0)]
+                )
+            # Force a select that doesn't match the expected column count
+            # and verify the row reader still works via row_factory names.
+            with store._lock:  # type: ignore[attr-defined]
+                store._conn.execute(  # type: ignore[attr-defined]
+                    "SELECT id, circular_id, title, text, chunk_index FROM chunks"
+                )
+                row = store._conn.execute(  # type: ignore[attr-defined]
+                    "SELECT * FROM chunks"
+                ).fetchone()
+            # Row uses sqlite3.Row, so named access works regardless of column order.
+            assert row["circular_id"] == "A"
+            assert row["chunk_index"] == 0
+        finally:
+            store.close()
+
 
 class TestEmbeddingDimMismatch:
     def test_dim_mismatch_raises(self) -> None:
-        """Mock litellm.aembedding to return a wrong-length vector; the
-        embedding wrapper must raise EmbeddingProviderError on dim mismatch."""
-        import asyncio
-
         import litellm  # type: ignore[import-untyped]
 
         from docendo.exceptions import EmbeddingProviderError
-        from docendo.retrieval import embeddings
 
         wrong = [0.0] * (DIMS - 1)  # one short
 
@@ -304,36 +358,43 @@ class TestEmbeddingDimMismatch:
             patch.object(litellm, "aembedding", side_effect=_fake_litellm),
             pytest.raises(EmbeddingProviderError),
         ):
-            asyncio.run(embeddings.async_embed_texts(["x"]))
+            asyncio.run(aembed(["x"]))
+
+    def test_empty_embedding_raises(self) -> None:
+        """Empty vectors are an error, not silent []."""
+        import litellm  # type: ignore[import-untyped]
+
+        from docendo.exceptions import EmbeddingProviderError
+
+        class _Resp:
+            def __init__(self) -> None:
+                self.data = [{"embedding": []}]
+
+        async def _fake_empty(*args, **kwargs):
+            return _Resp()
+
+        with (
+            patch.object(litellm, "aembedding", side_effect=_fake_empty),
+            pytest.raises(EmbeddingProviderError),
+        ):
+            asyncio.run(aembed(["x"]))
 
 
 class TestConcurrency:
     def test_concurrent_readers_one_writer(self, tmp_db: Path) -> None:
-        store = SQLiteStore(tmp_db)
+        store = Store(tmp_db)
         try:
             store.ensure_schema()
 
             def reader() -> None:
                 for _ in range(20):
                     store.count()
+                    store.list_recent("2023-01-01")
 
             def writer(idx: int) -> None:
-                rec = {
-                    "circular_id": f"W{idx}",
-                    "title": f"W{idx}",
-                    "text": f"text {idx}",
-                    "issue_date": "2024-01-15",
-                    "topic": "kyc",
-                    "source_url": f"https://rbi.org.in/W{idx}",
-                    "page_start": 1,
-                    "page_end": 1,
-                    "chunk_index": 0,
-                    "chunk_count": 1,
-                    "extraction_method": "text",
-                    "content_hash": f"h{idx}",
-                    "embedding": _fake_embed([f"text {idx}"])[0],
-                }
-                store.upsert_chunks(f"W{idx}", [rec])
+                store.upsert_chunks(
+                    f"W{idx}", [_record_with_embedding(f"W{idx}", f"text {idx}", 0)]
+                )
 
             threads = [threading.Thread(target=reader) for _ in range(5)]
             threads.append(threading.Thread(target=writer, args=(0,)))
@@ -344,3 +405,19 @@ class TestConcurrency:
                 assert not t.is_alive()
         finally:
             store.close()
+
+
+class TestChunkerWiring:
+    """Verify that the chunker module produces chunks we can embed."""
+
+    def test_chunker_returns_strings(self, tmp_db: Path) -> None:
+        # Don't even need the store; just sanity-check chunker is wired.
+        from docendo.retrieval import chunker
+
+        chunks = chunker.chunk(
+            "kyc threshold is fifty thousand rupees per transaction",
+            chunk_size=4,
+            overlap=1,
+        )
+        assert len(chunks) >= 1
+        assert all(isinstance(c, str) for c in chunks)

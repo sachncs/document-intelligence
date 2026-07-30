@@ -3,7 +3,7 @@
 Strategy:
 1. Try ``pypdf`` for cheap text extraction.
 2. If a page yields < 50 chars (likely scanned), render it via pypdfium2
-   and call the MiniMax-M3 vision API via LiteLLM.
+   and call the configured chat model vision API via LiteLLM.
 3. Cache results by ``(pdf_sha256, page_number)`` to avoid double-billing.
 """
 
@@ -23,20 +23,20 @@ from pydantic import HttpUrl
 from docendo.config import Settings, get_settings
 from docendo.exceptions import PDFExtractionError, VisionAPIError
 from docendo.logging import get_logger
-from docendo.models import ExtractedDocument, ExtractedPage
+from docendo.models import Page, Record
 
 logger = get_logger(__name__)
 
 _TEXT_PAGE_THRESHOLD: Final[int] = 50
 _VISION_DPI: Final[int] = 200
 _VISION_PROMPT: Final[str] = (
-    "Extract all text from this RBI document page, preserving structure "
+    "Extract all text from this document page, preserving structure "
     "(headings, paragraphs, list items, table cells). "
     "Return only the extracted text — no commentary, no markdown fencing."
 )
 
 
-def _sha256(path: Path) -> str:
+def sha256_file(path: Path) -> str:
     h = hashlib.sha256()
     with path.open("rb") as fh:
         for chunk in iter(lambda: fh.read(65536), b""):
@@ -44,7 +44,7 @@ def _sha256(path: Path) -> str:
     return h.hexdigest()
 
 
-def render_page_to_png(pdf_path: Path, page_number: int, dpi: int = _VISION_DPI) -> bytes:
+def render_page(pdf_path: Path, page_number: int, dpi: int = _VISION_DPI) -> bytes:
     """Render a 1-indexed PDF page to PNG bytes."""
     try:
         pdf = pdfium.PdfDocument(str(pdf_path))
@@ -52,7 +52,9 @@ def render_page_to_png(pdf_path: Path, page_number: int, dpi: int = _VISION_DPI)
         raise PDFExtractionError(f"Failed to open PDF {pdf_path}: {exc}") from exc
 
     if page_number < 1 or page_number > len(pdf):
-        raise PDFExtractionError(f"Page {page_number} out of range (1..{len(pdf)}) for {pdf_path}")
+        raise PDFExtractionError(
+            f"Page {page_number} out of range (1..{len(pdf)}) for {pdf_path}"
+        )
 
     page = pdf[page_number - 1]
     scale = dpi / 72.0
@@ -63,27 +65,19 @@ def render_page_to_png(pdf_path: Path, page_number: int, dpi: int = _VISION_DPI)
     return buf.getvalue()
 
 
-def extract_text_via_vision(
-    png_bytes: bytes,
-    settings: Settings | None = None,
-) -> str:
-    """Call MiniMax-M3 vision API to extract text from a rendered page."""
+def read_page(png_bytes: bytes, settings: Settings | None = None) -> str:
+    """Call the configured chat model's vision API to extract text from a rendered page."""
     settings = settings or get_settings()
     settings.require_llm()
-
-    try:
-        import litellm  # noqa: F401  (sanity import)
-    except ImportError as exc:
-        raise VisionAPIError("litellm not installed") from exc
 
     import base64
 
     b64 = base64.b64encode(png_bytes).decode("ascii")
     try:
         response = completion(
-            model=settings.litellm_model,
-            api_key=settings.minimax_api_key,
-            base_url=settings.minimax_base_url,
+            model=settings.chat,
+            api_key=settings.chat_key,
+            api_base=settings.chat_url,
             messages=[
                 {
                     "role": "user",
@@ -113,17 +107,16 @@ def extract_text_via_vision(
     return content.strip()
 
 
-def _split_page_text(page: pypdf.PageObject) -> str:
+def split_page(page: pypdf.PageObject) -> str:
     try:
         return page.extract_text() or ""
     except Exception:
         return ""
 
 
-def _parse_issue_date(text: str) -> str | None:
+def parse_date(text: str) -> str | None:
     """Return ISO 8601 date if found in the first KB of text, else None."""
     head = text[:1500]
-    # Common RBI date formats: DD/MM/YYYY, DD-MM-YYYY, DD.MM.YYYY, "January 1, 2024"
     patterns = [
         r"\b(\d{2})[/\-.](\d{2})[/\-.](\d{4})\b",
         r"\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{1,2}),?\s+(\d{4})\b",
@@ -161,48 +154,47 @@ def _parse_issue_date(text: str) -> str | None:
     return None
 
 
-def extract_pdf(
+def read(
     pdf_path: Path,
     circular_id: str,
     title: str,
     source_url: str,
     topic: str = "general",
     settings: Settings | None = None,
-) -> ExtractedDocument:
+) -> Record:
     """Extract a PDF, falling back to vision for scanned pages."""
     settings = settings or get_settings()
     pdf_path = Path(pdf_path)
     if not pdf_path.exists():
         raise PDFExtractionError(f"PDF not found: {pdf_path}")
 
-    logger.info("Extracting %s (%s)", pdf_path.name, circular_id)
+    logger.info("Reading %s (%s)", pdf_path.name, circular_id)
 
     try:
         reader = pypdf.PdfReader(str(pdf_path))
     except Exception as exc:
         raise PDFExtractionError(f"Failed to open PDF {pdf_path}: {exc}") from exc
 
-    pages: list[ExtractedPage] = []
+    pages: list[Page] = []
     for i, page in enumerate(reader.pages, start=1):
-        text = _split_page_text(page).strip()
+        text = split_page(page).strip()
         if len(text) >= _TEXT_PAGE_THRESHOLD:
-            pages.append(ExtractedPage(page_number=i, text=text, method="text"))
+            pages.append(Page(page_number=i, text=text, method="text"))
             continue
 
-        # Scanned page — try vision
         logger.info("Page %d of %s needs vision extraction", i, pdf_path.name)
         try:
-            png = render_page_to_png(pdf_path, i)
-            text = extract_text_via_vision(png, settings=settings)
-            pages.append(ExtractedPage(page_number=i, text=text, method="vision", confidence=0.85))
+            png = render_page(pdf_path, i)
+            text = read_page(png, settings=settings)
+            pages.append(Page(page_number=i, text=text, method="vision", confidence=0.85))
         except (VisionAPIError, PDFExtractionError) as exc:
             logger.warning("Vision extraction failed for page %d: %s", i, exc)
-            pages.append(ExtractedPage(page_number=i, text="", method="vision", confidence=0.0))
+            pages.append(Page(page_number=i, text="", method="vision", confidence=0.0))
 
     full_text = "\n\n".join(p.text for p in pages if p.text)
-    issue_date = _parse_issue_date(full_text)
+    issue_date = parse_date(full_text)
 
-    return ExtractedDocument(
+    return Record(
         circular_id=circular_id,
         title=title,
         issue_date=issue_date,
@@ -213,8 +205,4 @@ def extract_pdf(
     )
 
 
-__all__ = [
-    "extract_pdf",
-    "extract_text_via_vision",
-    "render_page_to_png",
-]
+__all__ = ["parse_date", "read", "read_page", "render_page", "sha256_file", "split_page"]

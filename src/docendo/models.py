@@ -7,29 +7,29 @@ from typing import Literal
 from pydantic import BaseModel, Field, HttpUrl, model_validator
 
 
-class Citation(BaseModel):
-    """A single citation pointing to a specific RBI circular."""
+class Cite(BaseModel):
+    """A single citation pointing to a specific document."""
 
     circular_id: str = Field(
-        description="RBI circular identifier, e.g. 'RBI/2023-24/123' or 'MD.CIR.123'.",
+        description="Document identifier, e.g. 'RBI/2023-24/123' or 'MD.CIR.123'.",
     )
     circular_title: str = Field(
-        description="Human-readable title of the cited circular.",
+        description="Human-readable title of the cited document.",
     )
     excerpt: str = Field(
         max_length=400,
-        description="Verbatim excerpt from the circular, max 400 characters.",
+        description="Verbatim excerpt from the document, max 400 characters.",
     )
     source_url: HttpUrl = Field(
-        description="URL on rbi.org.in where the circular can be verified.",
+        description="URL where the document can be verified.",
     )
     relevance: str = Field(
         description="One sentence explaining why this citation supports the claim.",
     )
 
 
-class RBIAnswer(BaseModel):
-    """Structured, citation-grounded answer to an RBI policy question."""
+class Answer(BaseModel):
+    """Structured, citation-grounded answer."""
 
     answer: str = Field(
         description=(
@@ -38,7 +38,7 @@ class RBIAnswer(BaseModel):
             "state that explicitly and set confidence='low'."
         ),
     )
-    citations: list[Citation] = Field(
+    citations: list[Cite] = Field(
         default_factory=list,
         description=(
             "Citations supporting the answer. Must be empty when the answer is a refusal. "
@@ -47,7 +47,7 @@ class RBIAnswer(BaseModel):
     )
     confidence: Literal["high", "medium", "low"] = Field(
         description=(
-            "high = answer directly supported by 1+ cited circulars; "
+            "high = answer directly supported by 1+ cited documents; "
             "medium = partial support or requires inference; "
             "low = insufficient evidence or out-of-scope."
         )
@@ -58,7 +58,7 @@ class RBIAnswer(BaseModel):
     )
 
 
-class ExtractedPage(BaseModel):
+class Page(BaseModel):
     """One page of a PDF, with the extraction method used."""
 
     page_number: int = Field(ge=1)
@@ -72,7 +72,7 @@ class ExtractedPage(BaseModel):
     )
 
 
-class ExtractedDocument(BaseModel):
+class Record(BaseModel):
     """A full PDF document with structured metadata and pages."""
 
     circular_id: str
@@ -83,14 +83,16 @@ class ExtractedDocument(BaseModel):
     )
     topic: str = Field(default="general")
     source_url: HttpUrl
-    pages: list[ExtractedPage]
+    pages: list[Page]
     full_text: str = Field(default="", description="Concatenation of all page texts.")
 
     @model_validator(mode="after")
-    def _compute_full_text(self) -> ExtractedDocument:
+    def compute_full_text(self) -> Record:
         if not self.full_text and self.pages:
-            object.__setattr__(self, "full_text", "\n\n".join(p.text for p in self.pages if p.text))
+            object.__setattr__(
+                self, "full_text", "\n\n".join(p.text for p in self.pages if p.text)
+            )
         return self
 
 
-__all__ = ["Citation", "ExtractedDocument", "ExtractedPage", "RBIAnswer"]
+__all__ = ["Answer", "Cite", "Page", "Record"]

@@ -1,4 +1,4 @@
-"""Gold evaluation dataset loader.
+"""docendo eval dataset loader.
 
 Supports YAML (canonical) and JSONL (hand-curated by humans).
 """
@@ -13,7 +13,7 @@ import yaml
 from pydantic import BaseModel, Field
 
 
-class EvalCase(BaseModel):
+class Case(BaseModel):
     """One gold Q/A pair in the evaluation set."""
 
     name: str
@@ -28,13 +28,13 @@ class EvalCase(BaseModel):
         default_factory=dict,
         description=(
             "topic: factual|procedural|cross_circular|date_bounded|trap; "
-            "source_faq_url: optional RBI FAQ URL; "
+            "source_faq_url: optional FAQ URL; "
             "source_circular_ids: list of circular IDs this case grounds."
         ),
     )
 
 
-def load_dataset(path: Path | str) -> list[EvalCase]:
+def load(path: Path | str) -> list[Case]:
     """Load gold dataset from YAML or JSONL."""
     path = Path(path)
     if not path.exists():
@@ -52,22 +52,22 @@ def load_dataset(path: Path | str) -> list[EvalCase]:
 
     if not isinstance(raw, list):
         raise ValueError("Dataset must be a list of case objects")
-    return [EvalCase(**item) for item in raw]
+    return [Case(**item) for item in raw]
 
 
-def save_dataset(cases: list[EvalCase], path: Path | str) -> None:
+def save(cases: list[Case], path: Path | str) -> None:
     """Write the dataset to YAML (canonical)."""
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     if path.suffix.lower() in {".yaml", ".yml"}:
-        with path.open("w", encoding="utf-8") as fh:
+        with path.open("w") as fh:
             yaml.safe_dump([c.model_dump() for c in cases], fh, sort_keys=False)
     elif path.suffix.lower() == ".jsonl":
-        with path.open("w", encoding="utf-8") as fh:
+        with path.open("w") as fh:
             for c in cases:
                 fh.write(json.dumps(c.model_dump()) + "\n")
     else:
         raise ValueError(f"Unsupported dataset format: {path.suffix}")
 
 
-__all__ = ["EvalCase", "load_dataset", "save_dataset"]
+__all__ = ["Case", "load", "save"]

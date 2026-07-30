@@ -9,48 +9,69 @@ from docendo.exceptions import ConfigurationError
 
 
 class TestSettings:
-    def test_litellm_model_prefix(self, settings: Settings) -> None:
-        assert settings.litellm_model == "minimax/MiniMax-M3"
+    def test_chat_property_format(self, monkeypatch) -> None:
+        monkeypatch.setenv("CHAT_MODEL", "MiniMax-M3")
+        s = Settings()
+        assert s.chat == "minimax/MiniMax-M3"
 
-    def test_litellm_embedding_model_prefix_preserves_existing(self, settings: Settings) -> None:
-        # BFSI_EMBEDDING_MODEL already contains a slash (Qwen/Qwen3-Embedding-8B),
-        # so litellm_embedding_model should not double-prefix.
-        assert settings.litellm_embedding_model == "Qwen/Qwen3-Embedding-8B"
+    def test_vector_id_preserves_existing_prefix(self, monkeypatch) -> None:
+        # BFSI_* env vars were removed in 0.4.0; this test guards against regressions
+        # where someone re-introduces a prefixed model id with a slash.
+        monkeypatch.setenv("VECTOR_MODEL", "Qwen/Qwen3-Embedding-8B")
+        s = Settings()
+        assert s.vector_id == "Qwen/Qwen3-Embedding-8B"
 
-    def test_require_llm_raises_on_empty(self, settings: Settings) -> None:
-        settings.minimax_api_key = ""
+    def test_require_llm_raises_on_empty(self, monkeypatch) -> None:
+        monkeypatch.setenv("CHAT_KEY", "")
+        s = Settings()
         with pytest.raises(ConfigurationError):
-            settings.require_llm()
+            s.require_llm()
 
-    def test_require_embeddings_raises_when_missing(self, settings: Settings) -> None:
-        settings.bfsi_embedding_api_key = ""
+    def test_require_embeddings_raises_when_missing(self, monkeypatch) -> None:
+        monkeypatch.setenv("VECTOR_KEY", "")
+        monkeypatch.setenv("VECTOR_BASE", "")
+        s = Settings()
         with pytest.raises(ConfigurationError):
-            settings.require_embeddings()
+            s.require_embeddings()
 
-    def test_require_for_run_passes_when_configured(self, settings: Settings) -> None:
+    def test_require_for_run_passes_when_configured(self, monkeypatch) -> None:
+        monkeypatch.setenv("CHAT_KEY", "test")
+        monkeypatch.setenv("VECTOR_KEY", "test")
+        monkeypatch.setenv("VECTOR_BASE", "https://embed.example.com")
+        s = Settings()
         # Should not raise.
-        settings.require_for_run()
+        s.require_for_run()
 
-    def test_tokenizer_match_passes_when_equal(self, settings: Settings) -> None:
-        settings.validate_tokenizer_match()
+    def test_tokenizer_match_passes_when_equal(self, monkeypatch) -> None:
+        monkeypatch.setenv("TOKENIZER_MODEL", "Qwen/Qwen3-Embedding-8B")
+        monkeypatch.setenv("VECTOR_MODEL", "Qwen/Qwen3-Embedding-8B")
+        s = Settings()
+        s.validate_tokenizer_match()
 
-    def test_tokenizer_mismatch_raises_by_default(self, settings: Settings) -> None:
-        settings.bfsi_tokenizer_model = "Qwen/Qwen2-7B"
+    def test_tokenizer_mismatch_raises_by_default(self, monkeypatch) -> None:
+        monkeypatch.setenv("TOKENIZER_MODEL", "Qwen/Qwen2-7B")
+        monkeypatch.setenv("VECTOR_MODEL", "Qwen/Qwen3-Embedding-8B")
+        s = Settings()
         with pytest.raises(ConfigurationError):
-            settings.validate_tokenizer_match()
+            s.validate_tokenizer_match()
 
-    def test_tokenizer_mismatch_allowed_when_flag_set(self, settings: Settings) -> None:
-        settings.bfsi_tokenizer_model = "Qwen/Qwen2-7B"
-        settings.bfsi_allow_tokenizer_mismatch = True
-        settings.validate_tokenizer_match()  # should not raise
+    def test_tokenizer_mismatch_allowed_when_flag_set(self, monkeypatch) -> None:
+        monkeypatch.setenv("TOKENIZER_MODEL", "Qwen/Qwen2-7B")
+        monkeypatch.setenv("VECTOR_MODEL", "Qwen/Qwen3-Embedding-8B")
+        monkeypatch.setenv("TOKENIZER_ALLOW_MISMATCH", "1")
+        s = Settings()
+        s.validate_tokenizer_match()  # should not raise
 
-    def test_chunk_overlap_must_be_less_than_chunk_size(self, settings: Settings) -> None:
-        settings.bfsi_chunk_overlap_tokens = settings.bfsi_chunk_size_tokens
+    def test_chunk_overlap_must_be_less_than_chunk_size(self, monkeypatch) -> None:
+        monkeypatch.setenv("CHUNK_OVERLAP", "500")
+        monkeypatch.setenv("CHUNK_SIZE", "500")
         with pytest.raises(ConfigurationError):
-            Settings.model_validate(settings.model_dump())
+            Settings()
 
-    def test_default_paths(self, settings: Settings) -> None:
-        assert settings.bfsi_sqlite_path.name == "rbi-circulars.sqlite3"
-        assert settings.bfsi_chunk_size_tokens == 384
-        assert settings.bfsi_chunk_overlap_tokens == 64
-        assert settings.bfsi_embedding_dims == 4096
+    def test_default_paths(self, monkeypatch) -> None:
+        # Defaults from the new env-driven Settings.
+        s = Settings()
+        assert s.store_path.name == "docendo.sqlite3"
+        assert s.chunk_size == 384
+        assert s.chunk_overlap == 64
+        assert s.vector_dims == 4096

@@ -1,11 +1,12 @@
-"""``docendo doctor`` — local diagnostics for the SQLite + Qwen3 stack."""
+"""``docendo checkup`` - local diagnostics for the SQLite + Qwen3 stack."""
 
 from __future__ import annotations
 
 import asyncio
+import importlib.resources
 import sqlite3
-import sys
 import time
+from pathlib import Path
 from typing import Any
 
 from docendo.config import Settings, get_settings
@@ -14,8 +15,36 @@ from docendo.logging import get_logger
 logger = get_logger(__name__)
 
 
-def _check_sqlite_opens(settings: Settings) -> tuple[bool, str]:
-    path = settings.bfsi_sqlite_path
+def paths(settings: Settings) -> tuple[bool, str]:
+    for label, p in (
+        ("data_raw_dir", settings.data_raw_dir),
+        ("data_processed_dir", settings.data_processed_dir),
+        ("reports_dir", settings.reports_dir),
+    ):
+        try:
+            p.mkdir(parents=True, exist_ok=True)
+        except Exception as exc:
+            return False, f"FAIL: {label}={p}: {exc}"
+    return True, "OK"
+
+
+def chat_creds(settings: Settings) -> tuple[bool, str]:
+    if not settings.chat_key:
+        return False, "FAIL: CHAT_KEY not set"
+    return True, f"OK (model={settings.chat}, base={settings.chat_url})"
+
+
+def tokenizer_match(settings: Settings) -> tuple[bool, str]:
+    if settings.tokenizer_model == settings.vector_model:
+        return True, "OK (match)"
+    return False, (
+        f"FAIL: tokenizer={settings.tokenizer_model!r} != "
+        f"embedding={settings.vector_model!r}"
+    )
+
+
+def sqlite_opens(settings: Settings) -> tuple[bool, str]:
+    path = settings.store_path
     path.parent.mkdir(parents=True, exist_ok=True)
     try:
         conn = sqlite3.connect(str(path))
@@ -29,15 +58,13 @@ def _check_sqlite_opens(settings: Settings) -> tuple[bool, str]:
         return False, f"FAIL: {exc}"
 
 
-def _check_vector_extension(settings: Settings) -> tuple[bool, str]:
-    import importlib.resources
-
+def vector_extension(settings: Settings) -> tuple[bool, str]:
     try:
         ext = importlib.resources.files("sqlite_vector.binaries") / "vector"
     except (ModuleNotFoundError, FileNotFoundError) as exc:
         return False, f"FAIL: sqlite_vector binaries not found: {exc}"
     try:
-        conn = sqlite3.connect(str(settings.bfsi_sqlite_path))
+        conn = sqlite3.connect(str(settings.store_path))
         try:
             conn.enable_load_extension(True)
             conn.load_extension(str(ext))
@@ -50,14 +77,31 @@ def _check_vector_extension(settings: Settings) -> tuple[bool, str]:
         return False, f"FAIL: {exc}"
 
 
-async def _check_embeddings(settings: Settings) -> tuple[bool, str]:
-    if not settings.bfsi_embedding_api_key or not settings.bfsi_embedding_api_base:
-        return False, "FAIL: BFSI_EMBEDDING_API_KEY/BFSI_EMBEDDING_API_BASE not set"
+def tokenizer_load(settings: Settings) -> tuple[bool, str]:
     try:
-        from docendo.retrieval.embedder import async_embed_texts
+        from docendo.retrieval import chunker
 
         start = time.perf_counter()
-        vecs = await async_embed_texts(["ping"], settings=settings)
+        ids = chunker.encode("hello world", settings=settings)
+        elapsed_ms = (time.perf_counter() - start) * 1000
+        if not ids:
+            return False, "FAIL: tokenizer returned empty ids"
+        return True, (
+            f"OK (model={settings.tokenizer_model!r}, "
+            f"tokens={len(ids)}, elapsed_ms={elapsed_ms:.1f})"
+        )
+    except Exception as exc:
+        return False, f"FAIL: {exc}"
+
+
+async def embeddings_check(settings: Settings) -> tuple[bool, str]:
+    if not settings.vector_key or not settings.vector_base:
+        return False, "FAIL: VECTOR_KEY/VECTOR_BASE not set"
+    try:
+        from docendo.retrieval.embedder import aembed
+
+        start = time.perf_counter()
+        vecs = await aembed(["ping"], settings=settings)
         elapsed_ms = (time.perf_counter() - start) * 1000
         if not vecs or not vecs[0]:
             return False, "FAIL: embedding returned empty vector"
@@ -66,66 +110,15 @@ async def _check_embeddings(settings: Settings) -> tuple[bool, str]:
         return False, f"FAIL: {exc}"
 
 
-def _check_tokenizer(settings: Settings) -> tuple[bool, str]:
-    try:
-        from docendo.retrieval import tokenizer
-
-        start = time.perf_counter()
-        ids = tokenizer.encode("hello world", settings=settings)
-        elapsed_ms = (time.perf_counter() - start) * 1000
-        if not ids:
-            return False, "FAIL: tokenizer returned empty ids"
-        return True, (
-            f"OK (model={settings.bfsi_tokenizer_model!r}, "
-            f"tokens={len(ids)}, elapsed_ms={elapsed_ms:.1f})"
-        )
-    except Exception as exc:
-        return False, f"FAIL: {exc}"
-
-
-def _check_minimax(settings: Settings) -> tuple[bool, str]:
-    if not settings.minimax_api_key:
-        return False, "FAIL: MINIMAX_API_KEY not set"
-    return True, f"OK (model={settings.litellm_model}, base={settings.minimax_base_url})"
-
-
-def _check_tokenizer_match(settings: Settings) -> tuple[bool, str]:
-    if settings.bfsi_tokenizer_model == settings.bfsi_embedding_model:
-        return True, "OK (match)"
-    return False, (
-        f"FAIL: tokenizer={settings.bfsi_tokenizer_model!r} != "
-        f"embedding={settings.bfsi_embedding_model!r}"
-    )
-
-
-def _check_paths(settings: Settings) -> tuple[bool, str]:
-    paths = [
-        ("data_raw_dir", settings.data_raw_dir),
-        ("data_processed_dir", settings.data_processed_dir),
-        ("reports_dir", settings.reports_dir),
-        ("eval_dataset_path", settings.eval_dataset_path),
-    ]
-    bad = []
-    for label, p in paths:
-        if not p.parent.exists() and label != "eval_dataset_path":
-            try:
-                p.parent.mkdir(parents=True, exist_ok=True)
-            except Exception as exc:
-                bad.append(f"{label}={p}: {exc}")
-    if bad:
-        return False, "FAIL: " + "; ".join(bad)
-    return True, "OK"
-
-
-async def _run_async_checks(do_embedding: bool, settings: Settings) -> list[tuple[str, bool, str]]:
-    results: list[tuple[str, bool, str]] = []
+async def async_checks(do_embedding: bool, settings: Settings) -> list[tuple[str, bool, str]]:
+    out: list[tuple[str, bool, str]] = []
     if do_embedding:
-        ok, msg = await _check_embeddings(settings)
-        results.append(("embeddings", ok, msg))
-    return results
+        ok, msg = await embeddings_check(settings)
+        out.append(("embeddings", ok, msg))
+    return out
 
 
-def run_doctor(
+def run(
     *,
     do_embedding: bool = True,
     do_tokenizer: bool = True,
@@ -133,30 +126,24 @@ def run_doctor(
     stream: Any = None,
 ) -> int:
     """Run all diagnostic checks; print results; return shell exit code."""
+    import sys
+
     settings = settings or get_settings()
     out = stream or sys.stdout
     results: list[tuple[str, bool, str]] = []
 
-    # Sync checks first.
-    ok, msg = _check_paths(settings)
-    results.append(("paths", ok, msg))
-    ok, msg = _check_minimax(settings)
-    results.append(("minimax_credentials", ok, msg))
-    ok, msg = _check_tokenizer_match(settings)
-    results.append(("tokenizer_match", ok, msg))
-    ok, msg = _check_sqlite_opens(settings)
-    results.append(("sqlite_opens", ok, msg))
-    ok, msg = _check_vector_extension(settings)
-    results.append(("vector_extension", ok, msg))
+    for name, fn in (
+        ("paths", lambda: paths(settings)),
+        ("chat_creds", lambda: chat_creds(settings)),
+        ("tokenizer_match", lambda: tokenizer_match(settings)),
+        ("sqlite_opens", lambda: sqlite_opens(settings)),
+        ("vector_extension", lambda: vector_extension(settings)),
+    ):
+        results.append((name, *fn()))
     if do_tokenizer:
-        ok, msg = _check_tokenizer(settings)
-        results.append(("tokenizer_load", ok, msg))
+        results.append(("tokenizer_load", *tokenizer_load(settings)))
+    results.extend(asyncio.run(async_checks(do_embedding, settings)))
 
-    # Async check: live embedding.
-    if do_embedding:
-        results.extend(asyncio.run(_run_async_checks(True, settings)))
-
-    # Pretty print.
     width = max(len(name) for name, _, _ in results)
     fail_count = 0
     for name, ok, msg in results:
@@ -173,4 +160,4 @@ def run_doctor(
     return 1
 
 
-__all__ = ["run_doctor"]
+__all__ = ["run"]

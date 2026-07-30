@@ -2,70 +2,74 @@
 
 from __future__ import annotations
 
+import time
+
 import pytest
 from pydantic import ValidationError
 
 from docendo.retrieval.types import (
-    CircularResponse,
-    CompareInput,
-    GetCircularInput,
-    HybridSearchInput,
-    ListRecentInput,
-    RecentItem,
-    SearchHit,
-    SearchResponse,
+    Document,
+    Hit,
+    Listing,
+    Lookup,
+    Pair,
+    PairResult,
+    Query,
+    Recent,
+    Results,
 )
 
 
-class TestHybridSearchInput:
+class TestQuery:
     def test_minimal(self) -> None:
-        i = HybridSearchInput(query="kyc")
+        i = Query(query="kyc")
         assert i.limit == 10
 
     def test_query_too_long(self) -> None:
         with pytest.raises(ValidationError):
-            HybridSearchInput(query="x" * 513)
+            Query(query="x" * 513)
 
     def test_limit_out_of_range(self) -> None:
         with pytest.raises(ValidationError):
-            HybridSearchInput(query="ok", limit=0)
+            Query(query="ok", limit=0)
         with pytest.raises(ValidationError):
-            HybridSearchInput(query="ok", limit=21)
+            Query(query="ok", limit=21)
 
 
-class TestGetCircularInput:
+class TestLookup:
     def test_valid_id(self) -> None:
-        i = GetCircularInput(id="RBI/2023-24/1")
+        i = Lookup(id="RBI/2023-24/1")
         assert i.id == "RBI/2023-24/1"
 
     def test_invalid_id_chars(self) -> None:
         with pytest.raises(ValidationError):
-            GetCircularInput(id="bad id with spaces")
+            Lookup(id="bad id with spaces")
 
     def test_id_too_long(self) -> None:
         with pytest.raises(ValidationError):
-            GetCircularInput(id="a" * 65)
+            Lookup(id="a" * 65)
 
 
-class TestListRecentInput:
+class TestRecent:
     def test_valid_date(self) -> None:
-        i = ListRecentInput(since="2024-01-01")
+        i = Recent(since="2024-01-01")
         assert i.limit == 20
+        assert i.include_unknown_date is False
 
     def test_invalid_date(self) -> None:
         with pytest.raises(ValidationError):
-            ListRecentInput(since="2024/01/01")
+            Recent(since="2024/01/01")
 
 
-class TestCompareInput:
+class TestPair:
     def test_two_valid(self) -> None:
-        c = CompareInput(id_a="A", id_b="B")
+        c = Pair(id_a="A", id_b="B")
         assert c.id_a == "A" and c.id_b == "B"
 
 
 class TestOutputModels:
-    def test_search_hit_defaults(self) -> None:
-        h = SearchHit(
+    def test_hit_defaults(self) -> None:
+        h = Hit(
             circular_id="X",
             title="T",
             text="text",
@@ -75,12 +79,15 @@ class TestOutputModels:
         )
         assert h.score == 0.0
         assert h.extraction_method == "text"
+        # New page-estimate fields default sensibly.
+        assert h.page_estimate_start is None
+        assert h.page_estimate_end is None
 
-    def test_search_response_roundtrip(self) -> None:
-        r = SearchResponse(
+    def test_results_roundtrip(self) -> None:
+        r = Results(
             query="kyc",
             hits=[
-                SearchHit(
+                Hit(
                     circular_id="X",
                     title="T",
                     text="text",
@@ -92,21 +99,21 @@ class TestOutputModels:
         )
         assert len(r.hits) == 1
 
-    def test_recent_item_minimal(self) -> None:
-        r = RecentItem(
+    def test_listing_minimal(self) -> None:
+        r = Listing(
             circular_id="X",
             title="T",
             source_url="https://rbi.org.in/x",
         )
         assert r.issue_date is None
 
-    def test_circular_response_chunks(self) -> None:
-        cr = CircularResponse(
+    def test_document_chunks(self) -> None:
+        cr = Document(
             circular_id="X",
             title="T",
             source_url="https://rbi.org.in/x",
             chunks=[
-                SearchHit(
+                Hit(
                     circular_id="X",
                     title="T",
                     text="text",
@@ -123,15 +130,13 @@ class TestPerfBudget:
     """Validation cost should be well under 50 microseconds per call."""
 
     def test_validates_quickly(self) -> None:
-        import time
-
         n = 1000
         start = time.perf_counter_ns()
         for _ in range(n):
-            HybridSearchInput(query="kyc", limit=5)
-            GetCircularInput(id="RBI/2024/1")
-            ListRecentInput(since="2024-01-01", limit=20)
-            CompareInput(id_a="A", id_b="B")
+            Query(query="kyc", limit=5)
+            Lookup(id="RBI/2024/1")
+            Recent(since="2024-01-01", limit=20)
+            Pair(id_a="A", id_b="B")
         elapsed_us = (time.perf_counter_ns() - start) / 1000
         per_call_us = elapsed_us / (n * 4)
         assert per_call_us < 50, f"per-call validation cost {per_call_us:.1f}us exceeds 50us budget"

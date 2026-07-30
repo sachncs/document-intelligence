@@ -5,12 +5,12 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from docendo.models import Citation, ExtractedDocument, ExtractedPage, RBIAnswer
+from docendo.models import Answer, Cite, Page, Record
 
 
-class TestCitation:
+class TestCite:
     def test_valid(self) -> None:
-        c = Citation(
+        c = Cite(
             circular_id="RBI/2023-24/123",
             circular_title="KYC Amendment",
             excerpt="KYC must be updated annually.",
@@ -21,7 +21,7 @@ class TestCitation:
 
     def test_excerpt_too_long(self) -> None:
         with pytest.raises(ValidationError):
-            Citation(
+            Cite(
                 circular_id="X",
                 circular_title="X",
                 excerpt="x" * 500,
@@ -30,25 +30,25 @@ class TestCitation:
             )
 
 
-class TestRBIAnswer:
+class TestAnswer:
     def test_default_citations(self) -> None:
-        a = RBIAnswer(answer="Refused.", confidence="low", notes="Out of scope.")
+        a = Answer(answer="Refused.", confidence="low", notes="Out of scope.")
         assert a.citations == []
 
     def test_confidence_must_be_literal(self) -> None:
         with pytest.raises(ValidationError):
-            RBIAnswer(answer="x", confidence="maybe")  # type: ignore[arg-type]
+            Answer(answer="x", confidence="maybe")  # type: ignore[arg-type]
 
 
-class TestExtractedDocument:
+class TestRecord:
     def test_full_text_concat(self) -> None:
-        doc = ExtractedDocument(
+        doc = Record(
             circular_id="A",
             title="T",
             source_url="https://rbi.org.in/a",
             pages=[
-                ExtractedPage(page_number=1, text="hello", method="text"),
-                ExtractedPage(page_number=2, text="world", method="vision"),
+                Page(page_number=1, text="hello", method="text"),
+                Page(page_number=2, text="world", method="vision"),
             ],
             full_text="",
         )
