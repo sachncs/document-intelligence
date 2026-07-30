@@ -1,49 +1,91 @@
 # Quickstart
 
-## Full pipeline
+## 0. Requirements
+
+- Python 3.11+
+- macOS (x86_64 or arm64), glibc Linux (x86_64 or aarch64), or Windows
+  x86_64. (Alpine / musl and Windows ARM are not supported — see
+  `docs/known-gaps.md`.)
+- An OpenAI-compatible endpoint serving `Qwen/Qwen3-Embedding-8B`
+  (vLLM, Ollama, DashScope, or hosted Qwen inference). Any
+  OpenAI-compatible base URL works.
+- A MiniMax API key for the chat model.
+
+## 1. Install
 
 ```bash
-# 1. Fetch RBI documents
+git clone <repo-url>
+cd document-intelligence
+pip install -e .
+```
+
+For development extras:
+
+```bash
+pip install -e ".[dev]"
+```
+
+## 2. Configure
+
+```bash
+cp .env.example .env
+# Edit .env:
+#   MINIMAX_API_KEY             (chat model key)
+#   MINIMAX_BASE_URL            (default: https://api.minimax.io/v1)
+#   MINIMAX_MODEL               (default: MiniMax-M3)
+#   BFSI_EMBEDDING_API_KEY      (your Qwen endpoint key)
+#   BFSI_EMBEDDING_API_BASE     (your Qwen endpoint base URL, no trailing /v1)
+#   BFSI_EMBEDDING_MODEL        (default: Qwen/Qwen3-Embedding-8B)
+#   BFSI_TOKENIZER_MODEL        (default: Qwen/Qwen3-Embedding-8B; must match)
+#   BFSI_EMBEDDING_DIMS         (default: 4096; verified at startup by doctor)
+```
+
+## 3. Sanity check
+
+```bash
+bfsi-rbi doctor
+# All checks should pass: paths, minimax_credentials, tokenizer_match,
+# sqlite_opens, vector_extension, embeddings, tokenizer_load.
+```
+
+For offline CI runs:
+
+```bash
+bfsi-rbi doctor --no-embedding --no-tokenizer
+```
+
+## 4. Run the pipeline
+
+```bash
+# Scrape RBI and download PDFs into data/raw/.
 bfsi-rbi fetch
 
-# 2. Ingest into Elasticsearch (with vision fallback for scanned PDFs)
+# Extract, chunk, embed, and store in SQLite (data/processed/rbi-circulars.sqlite3).
 bfsi-rbi ingest
 
-# 3. Set up ELSER inference endpoint
-bfsi-rbi setup-inference
+# Run 5 eval cases and write reports/results.jsonl.
+bfsi-rbi eval --limit 5
 
-# 4. Deploy Agent Builder tools
-bfsi-rbi deploy-tools
+# Generate reports/eval_report.md from results.jsonl.
+bfsi-rbi report
 
-# 5. Deploy the agent
-bfsi-rbi deploy-agent
-
-# 6. Smoke-test the MCP connection
-bfsi-rbi smoke-mcp
-
-# 7. Run the evaluation
-bfsi-rbi eval
-
-# 8. Generate the Markdown report
-bfsi-rbi report reports/results.jsonl
-
-# 9. Launch the Streamlit demo
+# Launch the Streamlit A/B demo on http://localhost:8501.
 bfsi-rbi demo
 ```
 
-## Library use
+## 5. Iterate
 
-```python
-from bfsi_rbi import get_settings
-from bfsi_rbi.agent import make_agent
-from bfsi_rbi.models import RBIAnswer
+Re-running `bfsi-rbi ingest` skips any PDF whose `content_hash` is
+unchanged, so it makes zero embedding calls on an unchanged corpus. To
+force re-embedding, delete the SQLite database (`rm
+data/processed/rbi-circulars.sqlite3`) or remove specific rows by hand.
 
-settings = get_settings()
-agent = make_agent(grounded=True, settings=settings)
+## Troubleshooting
 
-result = await agent.run("What is the LCR for NBFCs?")
-answer: RBIAnswer = result.output
-print(answer.answer)
-for c in answer.citations:
-    print(f"  [{c.circular_id}] {c.circular_title}: {c.source_url}")
-```
+- `ConfigurationError: tokenizer model does not match embedding model` —
+  set `BFSI_TOKENIZER_MODEL` to the same value as `BFSI_EMBEDDING_MODEL`.
+- `Embedding dim mismatch` — `BFSI_EMBEDDING_DIMS` differs from the
+  endpoint's actual dimension. Run `bfsi-rbi doctor` with embedding enabled
+  to observe the live dimension, then update `.env`.
+- Slow ingestion — embedding API latency dominates. Run with a small
+  `BFSI_FETCH_MAX_DOCS` to size the corpus.

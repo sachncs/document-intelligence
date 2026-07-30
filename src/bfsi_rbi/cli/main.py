@@ -8,11 +8,6 @@ from pathlib import Path
 
 import typer
 
-from bfsi_rbi.agent_builder import (
-    deploy_agent,
-    deploy_tools,
-    smoke_test_mcp,
-)
 from bfsi_rbi.config import get_settings
 from bfsi_rbi.eval.dataset import load_dataset
 from bfsi_rbi.eval.report import generate_report
@@ -24,7 +19,7 @@ from bfsi_rbi.logging import configure_logging, get_logger
 
 app = typer.Typer(
     name="bfsi-rbi",
-    help="Grounded RAG agent for BFSI document intelligence.",
+    help="Grounded RAG agent for BFSI document intelligence (local SQLite).",
     no_args_is_help=True,
     add_completion=False,
 )
@@ -57,7 +52,7 @@ def fetch(
         max_docs=max_docs or settings.rbi_fetch_max_docs,
         settings=settings,
     ):
-        typer.echo(f"  {doc.circular_id:60s} → {path}")
+        typer.echo(f"  {doc.circular_id:60s} -> {path}")
         count += 1
     typer.echo(f"Fetched {count} PDFs to {target}")
 
@@ -65,16 +60,16 @@ def fetch(
 @app.command()
 def ingest(
     raw_dir: Path | None = typer.Option(None, "--raw", help="Raw PDF directory."),
-    chunk_size: int | None = typer.Option(None, "--chunk-size"),
-    chunk_overlap: int | None = typer.Option(None, "--chunk-overlap"),
     max_docs: int | None = typer.Option(None, "--max", "-n"),
+    chunk_size: int | None = typer.Option(None, "--chunk-size", help="Override chunk size (tokens)."),
+    chunk_overlap: int | None = typer.Option(None, "--chunk-overlap", help="Override chunk overlap (tokens)."),
 ) -> None:
-    """Run the full ingestion pipeline: scrape → extract → index."""
+    """Run the full ingestion pipeline: scrape → extract → index into SQLite."""
     settings = get_settings()
     report = run_ingestion(
         raw_dir=raw_dir,
-        chunk_size=chunk_size,
-        chunk_overlap=chunk_overlap,
+        chunk_size_tokens=chunk_size,
+        chunk_overlap_tokens=chunk_overlap,
         max_docs=max_docs,
         settings=settings,
     )
@@ -85,41 +80,12 @@ def ingest(
                 "downloaded": report.downloaded,
                 "extracted": report.extracted,
                 "indexed": report.indexed,
+                "skipped": report.skipped,
                 "failed": len(report.failed),
             },
             indent=2,
         )
     )
-
-
-@app.command(name="setup-inference")
-def setup_inference() -> None:
-    """Ensure the ELSER inference endpoint is configured."""
-    from scripts.setup_inference import ensure_elser
-
-    ensure_elser()
-
-
-@app.command(name="deploy-tools")
-def deploy_tools_cmd() -> None:
-    """POST Agent Builder tool specs to Kibana."""
-    results = deploy_tools()
-    for r in results:
-        typer.echo(f"  {r['id']}: ok")
-
-
-@app.command(name="deploy-agent")
-def deploy_agent_cmd() -> None:
-    """POST the agent spec to Kibana."""
-    result = deploy_agent()
-    typer.echo(f"  {result['id']}: ok")
-
-
-@app.command(name="smoke-mcp")
-def smoke_mcp_cmd() -> None:
-    """Verify the MCP endpoint is reachable."""
-    result = smoke_test_mcp()
-    typer.echo(json.dumps(result, indent=2))
 
 
 @app.command()
@@ -234,6 +200,26 @@ def dataset_info(
     typer.echo(f"Total cases: {len(cases)}")
     for t, n in sorted(by_topic.items()):
         typer.echo(f"  {t}: {n}")
+
+
+@app.command()
+def doctor(
+    no_embedding: bool = typer.Option(
+        False,
+        "--no-embedding",
+        help="Skip the live embedding probe (for offline CI).",
+    ),
+    no_tokenizer: bool = typer.Option(
+        False,
+        "--no-tokenizer",
+        help="Skip the live tokenizer load (for offline CI).",
+    ),
+) -> None:
+    """Run local diagnostics: SQLite, vector extension, embedding/tokenizer reachability."""
+    from bfsi_rbi.cli.doctor import run_doctor
+
+    rc = run_doctor(do_embedding=not no_embedding, do_tokenizer=not no_tokenizer)
+    raise typer.Exit(code=rc)
 
 
 def main() -> None:

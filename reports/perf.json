@@ -1,0 +1,21 @@
+{
+  "benchmarks": [
+    {
+      "name": "ingest_100_chunks",
+      "elapsed_s": 1.3598225000314415,
+      "chunks": 100
+    },
+    {
+      "name": "hybrid_search_latency",
+      "p50_ms": 0.3541875630617142,
+      "p95_ms": 0.40312507189810276,
+      "samples": 50
+    },
+    {
+      "name": "reingest_skip_check",
+      "elapsed_s": 0.00012104201596230268,
+      "chunks": 50,
+      "embedding_calls": 0
+    }
+  ]
+}

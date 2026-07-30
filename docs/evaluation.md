@@ -1,68 +1,61 @@
 # Evaluation
 
-## Methodology
+The eval pipeline runs the same gold Q/A pairs through a **grounded** agent
+(with retrieval tools) and an **ungrounded** agent (no tools), then asks a
+judge LLM to score hallucination per atomic claim.
 
-The eval suite runs each question through **two** agents built from the same
-factory:
+## Pipeline
 
-| Run | Configuration |
-|---|---|
-| **Grounded** | `MCP(url=ELASTIC_MCP_URL)` enabled. Agent can call the four `rbi.*` tools. |
-| **Ungrounded** | No capabilities. Same model, same system prompt, no tools. |
+```
+eval/dataset.yaml (40 Q/A pairs)
+   │
+   ▼
+┌──────────────────────────────────────────────┐
+│ grounded agent (retrieval tools)             │
+│ ungrounded agent (no tools)                  │
+│   run in parallel (asyncio.gather)           │
+└──────────────────────────────────────────────┘
+   │
+   ▼
+results.jsonl (one line per case, per mode)
+   │
+   ▼
+reports/eval_report.md (Markdown aggregate)
+```
 
-Both runs use:
-- MiniMax-M3 at `temperature=0.0` for determinism
-- Same `RBIAnswer` output schema
-- Same judge LLM for scoring
+Each case yields:
 
-## The judge
+- `grounded_answer` (string), `grounded_citations` (list of citation dicts)
+- `grounded_hallucination` (atomic-claim breakdown)
+- `ungrounded_answer`, `ungrounded_hallucination`
 
-`AtomicClaimHallucination` (in `bfsi_rbi.eval.hallucination`) is a custom
-`pydantic-evals` evaluator:
+## Hallucination judge
 
-1. **Decompose** the answer into atomic claims — single, falsifiable
-   statements.
-2. **Judge** each claim against the gold answer:
-   - `supported` — explicitly in gold
-   - `contradicted` — directly contradicts gold
-   - `extra` — plausible but not in gold (counts as hallucination)
-3. **Aggregate**:
-   ```
-   hallucination_rate = (contradicted + extra) / total_claims
-   grounding_score    = supported / total_claims
-   ```
+The judge LLM is the same MiniMax-M3 chat model. For each answer it:
 
-## Metrics
+1. Decomposes the answer into atomic claims (one JSON array).
+2. For each claim, asks the judge to label it `supported` /
+   `contradicted` / `extra` against the gold answer.
+3. Aggregates: `hallucination_rate = (contradicted + extra) / total_claims`.
 
-| Metric | Definition |
-|---|---|
-| `hallucination_rate` | (contradicted + extra) / total_claims |
-| `grounding_score` | supported / total_claims |
-| `citation_accuracy` | fraction of cases where the agent cited ≥1 source |
-| `relative_reduction` | (ungrounded_hallu - grounded_hallu) / ungrounded_hallu |
-
-## Dataset
-
-40 hand-curated Q/A pairs in `eval/dataset.yaml`:
-
-| Topic | Count |
-|---|---|
-| factual | 14 |
-| procedural | 8 |
-| cross_circular | 8 |
-| date_bounded | 6 |
-| trap | 4 |
-
-Every gold answer is sourced from an official RBI document (Master
-Direction, FAQ, or public circular reference).
-
-## Running
+## CLI
 
 ```bash
-bfsi-rbi eval --limit 40
+bfsi-rbi eval --limit 40 --concurrency 5
 bfsi-rbi report reports/results.jsonl
 ```
 
-Output:
-- `reports/results.jsonl` — raw per-case results
-- `reports/eval_report.md` — aggregate Markdown report
+## Report contents
+
+`reports/eval_report.md` contains:
+
+- Aggregate metrics (ungrounded vs grounded hallucination rate, grounding
+  score, citation accuracy).
+- By-topic breakdown.
+- Per-case table.
+
+## Performance budget
+
+40 cases at `bfsi_eval_concurrency=5` should complete in **under 4
+minutes** on a single host (dominated by chat-model latency). See
+`docs/performance.md` for the benchmark suite.

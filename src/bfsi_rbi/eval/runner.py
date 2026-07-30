@@ -1,4 +1,9 @@
-"""Evaluation runner: baseline + agent, then judge."""
+"""Evaluation runner: grounded + ungrounded agents in parallel, then judge.
+
+Both agents share a cached ``LiteLLMModel`` instance. Blocking SQLite calls
+inside the tool functions are offloaded to a worker thread via
+``asyncio.to_thread`` so the event loop is not stalled.
+"""
 
 from __future__ import annotations
 
@@ -117,8 +122,7 @@ def run_eval(
 ) -> list[CaseResult]:
     """Run the full evaluation suite and return CaseResult list."""
     settings = settings or get_settings()
-    settings.require_elastic()
-    settings.require_llm()
+    settings.require_for_run()
     concurrency = concurrency or settings.bfsi_eval_concurrency
 
     logger.info("Running %d cases at concurrency=%d", len(cases), concurrency)
@@ -137,7 +141,6 @@ def run_eval(
 
 def _result_to_dict(r: CaseResult) -> dict[str, Any]:
     d = asdict(r)
-    # dropped via asdict: nondict hallucination fields. Add manually.
     d["grounded_hallucination"] = (
         r.grounded_hallucination.to_dict() if r.grounded_hallucination else None
     )

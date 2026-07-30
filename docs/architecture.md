@@ -1,90 +1,100 @@
 # Architecture
 
-## Data flow
+## Diagram
 
 ```
-         RBI PDFs on rbi.org.in
-                  │
-                  ▼
-        ┌─────────────────────┐
-        │  rbi_scraper.py     │  httpx + BeautifulSoup
-        │  download_pdf()     │
-        └─────────────────────┘
-                  │
-                  ▼  data/raw/*.pdf
-        ┌─────────────────────┐
-        │  pdf.py             │  pypdf → vision fallback
-        │  extract_pdf()      │  via LiteLLM → MiniMax-M3
-        └─────────────────────┘
-                  │
-                  ▼  ExtractedDocument
-        ┌─────────────────────┐
-        │  pipeline.py        │  chunking + bulk index
-        │  run_ingestion()    │
-        └─────────────────────┘
-                  │
-                  ▼  Elasticsearch index
-        ┌─────────────────────┐
-        │  rbi-circulars      │  semantic_text + text
-        │  + .elser-2-...     │  ELSER inference
-        └─────────────────────┘
-                  │
-                  ▼  ES|QL tools
-        ┌─────────────────────┐
-        │  Agent Builder      │  hybrid_search, get_circular,
-        │  (Kibana)           │  list_recent, compare_circulars
-        └─────────────────────┘
-                  │
-                  ▼  MCP endpoint
-        ┌─────────────────────┐
-        │  Pydantic AI Agent  │  MiniMax-M3 via LiteLLM
-        │  (Python)           │  output: RBIAnswer
-        └─────────────────────┘
-                  │
-                  ▼  structured answer
-        ┌─────────────────────┐
-        │  Streamlit UI       │  side-by-side A/B
-        │  / reports          │  Markdown
-        └─────────────────────┘
+RBI PDFs ── pypdf/vision-extract ── gigatoken chunk ── LiteLLM embed (Qwen3)
+                                          │
+                                          ▼
+                       SQLite + FTS5 + sqlite-vector
+                       (data/processed/rbi-circulars.sqlite3)
+                                          │
+                                          ▼
+                  Pydantic AI Agent (MiniMax-M3) + four direct tools
+                                          │
+                                          ▼
+                              Structured RBIAnswer
+                                          │
+                                          ▼
+                            Streamlit A/B Chat UI
 ```
 
-## Key design choices
+## Components
 
-| Decision | Reason |
+| Layer | Responsibility |
 |---|---|
-| Pydantic AI | Type-safe agents, native MCP, structured outputs |
-| LiteLLM | Provider-agnostic; switch from MiniMax to OpenAI/Anthropic with one env change |
-| MiniMax-M3 | Multimodal frontier model; supports both text and vision via same endpoint |
-| Agent Builder | Native MCP server, ES|QL tools, Elastic hybrid search with RRF |
-| Atomic-claim judge | Per-claim grading eliminates false positives from partial matches |
-| `RBIAnswer` schema | Forces citations; hallucinations cannot render without source IDs |
-| `ConcurrencyLimitedModel` | Bounded parallelism keeps ES free-tier rate limits in check |
+| `bfsi_rbi.ingestion.rbi_scraper` | Discovers RBI PDFs and downloads them to `data/raw/`. |
+| `bfsi_rbi.ingestion.pdf` | Extracts text via `pypdf`; falls back to MiniMax vision for scanned pages. |
+| `bfsi_rbi.retrieval.tokenizer` | Gigatoken wrapper. Chunks by token count (default 384, overlap 64). |
+| `bfsi_rbi.retrieval.embeddings` | LiteLLM embedding client. Batched, retried, in-memory LRU cache. |
+| `bfsi_rbi.retrieval.sqlite_store` | SQLite + FTS5 + sqlite-vector backend. Hybrid search via RRF. |
+| `bfsi_rbi.retrieval.factory` | Process-wide singleton retriever, cached on `(path, settings)`. |
+| `bfsi_rbi.retrieval.tools` | Four Pydantic AI tool functions: `hybrid_search`, `get_circular`, `list_recent`, `compare_circulars`. |
+| `bfsi_rbi.agent` | Pydantic AI agent factory. Tools attached when `grounded=True`. |
+| `bfsi_rbi.eval` | Atomic-claim LLM-as-judge evaluation pipeline. |
+| `bfsi_rbi.ui.streamlit_app` | A/B chat demo. |
+| `bfsi_rbi.cli.doctor` | Local diagnostics. |
 
-## Index schema
+## Tool surface
 
-```json
-{
-  "properties": {
-    "circular_id": {"type": "keyword"},
-    "title": {"type": "text"},
-    "text": {"type": "text"},
-    "semantic_text": {"type": "semantic_text", "inference_id": ".elser-2-elasticsearch"},
-    "issue_date": {"type": "date"},
-    "topic": {"type": "keyword"},
-    "source_url": {"type": "keyword"},
-    "page_count": {"type": "integer"},
-    "extraction_method": {"type": "keyword"}
-  }
-}
-```
+| Tool | Inputs | Output | Backend calls |
+|---|---|---|---|
+| `hybrid_search` | `query: str (1-512)`, `limit: int (1-20)` | `SearchResponse` (ranked hits) | FTS5 `bm25` + `vector_full_scan` + RRF fusion in Python |
+| `get_circular` | `id: str` (regex-validated) | `CircularResponse` (chunks in order) | `chunks` table filtered by `circular_id`, ordered by `chunk_index` |
+| `list_recent` | `since: YYYY-MM-DD`, `limit: int (1-20)` | `list[RecentItem]` (first chunks) | Partial index `idx_chunks_first_recent` |
+| `compare_circulars` | `id_a, id_b: str` | `CompareResponse` (two `CircularResponse`s) | Two `get_circular` calls |
 
-## Tool specs
+## Data model
 
-Four ES|QL tools deployed to Agent Builder:
+`chunks` table:
 
-| ID | ES|QL pattern | Purpose |
+| Column | Type | Notes |
 |---|---|---|
-| `rbi.hybrid_search` | `FORK` (BM25) `(semantic)` `FUSE RRF` | Top hybrid hits |
-| `rbi.get_circular` | `WHERE circular_id == ?id` | Full text |
-| `rbi.list_recent` | `WHERE issue_date >= ?since` | Date-filtered |
-| `rbi.compare_circulars` | `WHERE circular_id IN (?a, ?b)` | Side-by-side |
+| `id` | INTEGER PK | rowid |
+| `circular_id` | TEXT | Unique with `chunk_index` |
+| `title` | TEXT | — |
+| `text` | TEXT | chunk text (≤ `bfsi_max_chars_per_result`) |
+| `issue_date` | TEXT (nullable) | ISO 8601 |
+| `topic` | TEXT (nullable) | — |
+| `source_url` | TEXT | rbi.org.in URL |
+| `page_start`, `page_end` | INTEGER | best-effort provenance |
+| `chunk_index`, `chunk_count` | INTEGER | 0-indexed within circular |
+| `extraction_method` | TEXT | `text` or `mixed` (vision pages) |
+| `content_hash` | TEXT | SHA-256 of PDF bytes; powers re-ingest skip |
+| `embedding` | BLOB | sqlite-vector `FLOAT32` of `bfsi_embedding_dims` |
+
+`chunks_fts` (FTS5 virtual table): mirrors `chunks.title` and `chunks.text`.
+Synchronized via `chunks_ai`, `chunks_ad`, `chunks_au` triggers. Tokenized by
+FTS5's built-in `unicode61` tokenizer with diacritics removed.
+
+`chunks_meta`: `key`/`value` rows storing `schema_version`,
+`embedding_model`, `embedding_dims`, `tokenizer_model`.
+
+## Concurrency model
+
+- One `SQLiteStore` per `(path, settings)` per process. Constructed via
+  `functools.lru_cache` in `factory.get_retriever`.
+- WAL mode allows concurrent readers; one writer at a time via a
+  per-path `threading.Lock`.
+- `PRAGMA busy_timeout=5000` keeps well-behaved writers from failing.
+- Embedding calls happen on the asyncio event loop (LiteLLM is async).
+  SQLite writes are offloaded via `asyncio.to_thread` so they never
+  stall the loop.
+
+## Failure modes
+
+- **Embedding endpoint down**: `EmbeddingProviderError` propagates out of
+  the tool / pipeline with the model id and base URL in the message.
+- **Tokenizer fails to load**: `ConfigurationError` at the first call
+  to `chunk_text`. Surface this early via `bfsi-rbi doctor`.
+- **SQLite corruption**: partial FTS5 entries can be repaired via
+  `INSERT INTO chunks_fts(chunks_fts) VALUES('rebuild');`.
+- **Re-ingestion of an unchanged PDF**: skipped at the `content_hash`
+  short-circuit, with zero embedding calls and zero extraction.
+
+## What is NOT here
+
+- No Elasticsearch, Kibana, Agent Builder, ELSER, or ES|QL. Those code
+  paths were removed in `v0.2.0`; see `CHANGELOG.md`.
+- No `MCP` Pydantic AI capability. The agent uses direct tool functions.
+- No public HTTPS host for the corpus. The SQLite store is local.

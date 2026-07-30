@@ -1,5 +1,6 @@
 """Custom exception hierarchy."""
 
+
 from __future__ import annotations
 
 
@@ -23,16 +24,12 @@ class VisionAPIError(BFSIRBIError):
     """Vision API call failed or returned invalid response."""
 
 
-class ElasticsearchError(BFSIRBIError):
-    """Elasticsearch operation failed."""
+class EmbeddingProviderError(BFSIRBIError):
+    """Embedding provider call failed or returned invalid output."""
 
 
-class AgentBuilderError(BFSIRBIError):
-    """Agent Builder API call failed."""
-
-
-class MCPConnectionError(BFSIRBIError):
-    """Could not connect to the Agent Builder MCP server."""
+class StorageError(BFSIRBIError):
+    """SQLite or other storage backend failed."""
 
 
 class EvalError(BFSIRBIError):

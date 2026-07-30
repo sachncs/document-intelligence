@@ -1,21 +1,26 @@
-"""End-to-end ingestion pipeline: scrape → extract → index."""
+"""End-to-end ingestion pipeline: scrape → extract → chunk → embed → store.
+
+The pipeline is backend-neutral except for one call: ``retriever.upsert_chunks``.
+Each chunk is embedded once via :func:`bfsi_rbi.retrieval.embeddings.async_embed_texts`,
+and the SQLite store receives pre-computed vectors (no SQL/embedding coupling).
+"""
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
+import hashlib
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 from bfsi_rbi.config import Settings, get_settings
-from bfsi_rbi.es.client import get_es_client
-from bfsi_rbi.es.index import ensure_index
-from bfsi_rbi.exceptions import ElasticsearchError
+from bfsi_rbi.exceptions import StorageError
 from bfsi_rbi.ingestion.pdf import extract_pdf
-from bfsi_rbi.ingestion.rbi_scraper import (
-    discover_and_download,
-)
+from bfsi_rbi.ingestion.rbi_scraper import discover_and_download
 from bfsi_rbi.logging import get_logger
 from bfsi_rbi.models import ExtractedDocument
+from bfsi_rbi.retrieval.tokenizer import chunk_text
 
 logger = get_logger(__name__)
 
@@ -28,131 +33,175 @@ class IngestionReport:
     downloaded: int = 0
     extracted: int = 0
     indexed: int = 0
+    skipped: int = 0
     failed: list[str] = field(default_factory=list)
     documents: list[ExtractedDocument] = field(default_factory=list)
 
 
-def _chunk_text(text: str, chunk_size: int, overlap: int) -> list[str]:
-    """Greedy word-boundary chunking."""
-    if chunk_size <= 0:
-        raise ValueError("chunk_size must be > 0")
-    if overlap < 0 or overlap >= chunk_size:
-        raise ValueError("overlap must be in [0, chunk_size)")
-    words = text.split()
-    if not words:
+def _content_hash(path: Path) -> str:
+    """Return a stable SHA-256 hex digest of the PDF bytes."""
+    h = hashlib.sha256()
+    with path.open("rb") as fh:
+        for chunk in iter(lambda: fh.read(65536), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def _build_chunks(
+    extracted: ExtractedDocument,
+    content_hash: str,
+    chunk_size_tokens: int,
+    chunk_overlap_tokens: int,
+    settings: Settings,
+) -> list[dict[str, Any]]:
+    """Convert an ExtractedDocument into backend-neutral chunk records (no embeddings)."""
+    if not extracted.full_text.strip():
         return []
-    chunks: list[str] = []
-    i = 0
-    while i < len(words):
-        end = min(i + chunk_size, len(words))
-        chunks.append(" ".join(words[i:end]))
-        if end == len(words):
-            break
-        i += chunk_size - overlap
-    return chunks
-
-
-def _to_es_doc(doc: ExtractedDocument, chunk_size: int, chunk_overlap: int) -> list[dict[str, Any]]:
-    """Convert an ExtractedDocument into ES bulk-ready actions.
-
-    Each chunk is a separate document with a `parent_id` field pointing
-    to the parent circular's ID. The first chunk carries the full metadata.
-    """
-    chunks = _chunk_text(doc.full_text, chunk_size, chunk_overlap)
-    if not chunks:
+    texts = chunk_text(
+        extracted.full_text,
+        chunk_size=chunk_size_tokens,
+        overlap=chunk_overlap_tokens,
+        settings=settings,
+    )
+    if not texts:
         return []
-    bulk: list[dict[str, Any]] = []
-    for idx, chunk in enumerate(chunks):
-        is_first = idx == 0
-        body = {
-            "circular_id": doc.circular_id,
-            "title": doc.title,
-            "text": chunk,
-            "semantic_text": chunk,
-            "issue_date": doc.issue_date,
-            "topic": doc.topic,
-            "source_url": str(doc.source_url),
-            "page_count": len(doc.pages),
-            "extraction_method": "mixed"
-            if any(p.method == "vision" for p in doc.pages)
-            else "text",
-            "chunk_index": idx,
-            "chunk_count": len(chunks),
-        }
-        if not is_first:
-            body["title"] = f"{doc.title} (chunk {idx + 1}/{len(chunks)})"
-        bulk.append(
-            {"index": {"_index": doc.circular_id + "_chunks", "_id": f"{doc.circular_id}_{idx}"}}
+    records: list[dict[Any, Any]] = []
+    for idx, text in enumerate(texts):
+        records.append(
+            {
+                "circular_id": extracted.circular_id,
+                "title": extracted.title,
+                "text": text,
+                "issue_date": extracted.issue_date,
+                "topic": extracted.topic,
+                "source_url": str(extracted.source_url),
+                "page_start": 1,
+                "page_end": max(1, len(extracted.pages)),
+                "chunk_index": idx,
+                "chunk_count": len(texts),
+                "extraction_method": (
+                    "mixed"
+                    if any(p.method == "vision" for p in extracted.pages)
+                    else "text"
+                ),
+                "content_hash": content_hash,
+            }
         )
-        bulk.append(body)
-    return bulk
+    return records
 
 
-def _bulk_index(bulk_actions: list[dict[str, Any]], es: Any) -> tuple[int, int]:
-    """Execute a bulk request and return (success_count, error_count)."""
+async def _process_one(
+    retriever: Any,
+    doc: Any,
+    path: Path,
+    chunk_size: int,
+    chunk_overlap: int,
+    settings: Settings,
+) -> tuple[int, bool, str | None]:
+    """Process one PDF: extract, chunk, embed, upsert.
+
+    Returns (inserted, skipped, error_message_or_none).
+    """
+    from bfsi_rbi.retrieval.embeddings import async_embed_texts
+
+    content_hash = _content_hash(path)
     try:
-        resp = es.bulk(operations=bulk_actions, refresh="wait_for")
+        if retriever.circular_is_current(doc.circular_id, content_hash):
+            logger.info("Skipping %s (content unchanged)", doc.circular_id)
+            return 0, True, None
     except Exception as exc:
-        raise ElasticsearchError(f"Bulk index failed: {exc}") from exc
-    ok = sum(1 for item in resp["items"] if next(iter(item.values())).get("status", 500) < 300)
-    err = len(resp["items"]) - ok
-    return ok, err
+        logger.warning("Skip-check failed for %s: %s; will re-ingest", doc.circular_id, exc)
+
+    try:
+        extracted = extract_pdf(
+            path,
+            circular_id=doc.circular_id,
+            title=doc.title,
+            source_url=doc.pdf_url,
+            topic=doc.topic,
+            settings=settings,
+        )
+    except Exception as exc:
+        return 0, False, f"extract: {exc}"
+
+    chunks = _build_chunks(extracted, content_hash, chunk_size, chunk_overlap, settings)
+    if not chunks:
+        return 0, False, "no chunks"
+
+    try:
+        vectors = await async_embed_texts(
+            [str(c["text"]) for c in chunks], settings=settings
+        )
+    except Exception as exc:
+        return 0, False, f"embed: {exc}"
+
+    for c, v in zip(chunks, vectors, strict=True):
+        c["embedding"] = v
+
+    try:
+        inserted = await asyncio.to_thread(
+            retriever.upsert_chunks, doc.circular_id, chunks
+        )
+    except Exception as exc:
+        return 0, False, f"upsert: {exc}"
+    return inserted, False, None
 
 
 def run_ingestion(
     raw_dir: Path | None = None,
-    chunk_size: int | None = None,
-    chunk_overlap: int | None = None,
+    chunk_size_tokens: int | None = None,
+    chunk_overlap_tokens: int | None = None,
     max_docs: int | None = None,
     settings: Settings | None = None,
 ) -> IngestionReport:
-    """Run the full ingestion pipeline."""
+    """Run the full ingestion pipeline synchronously."""
+    from bfsi_rbi.retrieval.factory import get_retriever
+
     settings = settings or get_settings()
-    settings.require_elastic()
+    settings.require_for_run()
     raw_dir = Path(raw_dir or settings.data_raw_dir)
-    chunk_size = chunk_size or settings.bfsi_chunk_size
-    chunk_overlap = chunk_overlap or settings.bfsi_chunk_overlap
+    chunk_size = chunk_size_tokens or settings.bfsi_chunk_size_tokens
+    chunk_overlap = chunk_overlap_tokens or settings.bfsi_chunk_overlap_tokens
     max_docs = max_docs or settings.rbi_fetch_max_docs
 
     report = IngestionReport()
-    es = get_es_client(settings)
-    ensure_index(es, settings.bfsi_index_name, recreate=False, settings=settings)
+    retriever = get_retriever(settings)
 
-    for doc, path in discover_and_download(raw_dir, max_docs=max_docs, settings=settings):
-        report.total_discovered += 1
-        report.downloaded += 1
-        try:
-            extracted = extract_pdf(
-                path,
-                circular_id=doc.circular_id,
-                title=doc.title,
-                source_url=doc.pdf_url,
-                topic=doc.topic,
-                settings=settings,
+    try:
+        retriever.ensure_schema()
+    except Exception as exc:
+        raise StorageError(f"Failed to initialize SQLite store: {exc}") from exc
+
+    async def _run_all() -> None:
+        for doc, path in discover_and_download(raw_dir, max_docs=max_docs, settings=settings):
+            report.total_discovered += 1
+            report.downloaded += 1
+            inserted, skipped, err = await _process_one(
+                retriever, doc, path, chunk_size, chunk_overlap, settings
             )
-        except Exception as exc:
-            logger.warning("Failed to extract %s: %s", path, exc)
-            report.failed.append(str(path))
-            continue
+            if err is not None:
+                logger.warning("Failed to process %s: %s", doc.circular_id, err)
+                report.failed.append(f"{doc.circular_id}: {err}")
+                continue
+            if skipped:
+                report.skipped += 1
+            else:
+                report.extracted += 1
+                report.indexed += inserted
 
-        report.extracted += 1
-        report.documents.append(extracted)
+    asyncio.run(_run_all())
 
-        bulk_actions = _to_es_doc(extracted, chunk_size, chunk_overlap)
-        if not bulk_actions:
-            continue
-        ok, err = _bulk_index(bulk_actions, es)
-        report.indexed += ok
-        if err:
-            logger.warning("%d chunks failed to index for %s", err, doc.circular_id)
-            report.failed.append(f"{doc.circular_id}: {err} chunk errors")
+    with contextlib.suppress(Exception):
+        retriever.optimize()
 
     logger.info(
-        "Ingestion complete: discovered=%d, downloaded=%d, extracted=%d, indexed=%d, failed=%d",
+        "Ingestion complete: discovered=%d, downloaded=%d, extracted=%d, "
+        "indexed=%d, skipped=%d, failed=%d",
         report.total_discovered,
         report.downloaded,
         report.extracted,
         report.indexed,
+        report.skipped,
         len(report.failed),
     )
     return report

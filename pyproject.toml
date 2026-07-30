@@ -4,8 +4,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "bfsi-rbi"
-version = "0.1.0"
-description = "Grounded RAG agent for BFSI document intelligence over RBI circulars"
+version = "0.2.0"
+description = "Grounded RAG agent for BFSI document intelligence over RBI circulars (local-first SQLite + Qwen3-Embedding-8B)"
 readme = "README.md"
 requires-python = ">=3.11"
 license = { file = "LICENSE" }
@@ -17,7 +17,10 @@ keywords = [
     "agent",
     "bfsi",
     "rbi",
-    "elasticsearch",
+    "sqlite",
+    "sqlite-vector",
+    "gigatoken",
+    "qwen3",
     "pydantic-ai",
     "litellm",
 ]
@@ -25,7 +28,9 @@ classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: Apache Software License",
-    "Operating System :: OS Independent",
+    "Operating System :: MacOS :: MacOS X",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: Microsoft :: Windows",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
@@ -38,7 +43,6 @@ dependencies = [
     "litellm>=1.50.0",
     "pypdf>=4.0.0",
     "pypdfium2>=4.0.0",
-    "elasticsearch>=9.0.0,<10.0.0",
     "streamlit>=1.35.0",
     "pydantic-settings>=2.0.0",
     "typer>=0.12.0",
@@ -46,6 +50,8 @@ dependencies = [
     "pyyaml>=6.0",
     "httpx>=0.27.0",
     "pydantic>=2.7.0",
+    "sqliteai-vector>=1.0.0,<2",
+    "gigatoken>=0.10,<1.0",
 ]
 
 [project.optional-dependencies]
@@ -84,6 +90,8 @@ include = [
     "tests",
     "docs",
     "eval",
+    "NOTICE",
+    "LICENSES",
 ]
 
 [tool.ruff]
@@ -118,6 +126,14 @@ ignore_missing_imports = true
 module = ["logfire"]
 ignore_missing_imports = true
 
+[[tool.mypy.overrides]]
+module = ["gigatoken"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["sqlite_vector"]
+ignore_missing_imports = true
+
 [tool.pytest]
 minversion = "8.0"
 testpaths = ["tests"]
@@ -128,8 +144,9 @@ addopts = [
     "--strict-config",
 ]
 markers = [
-    "integration: requires live Elastic / MiniMax / Network",
+    "integration: requires live embedding / MiniMax / Network",
     "slow: takes more than 5 seconds",
+    "perf: performance budget benchmarks",
 ]
 
 [tool.coverage.run]

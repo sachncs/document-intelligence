@@ -86,7 +86,7 @@ def main() -> None:
     st.title("RBI Policy Analyst — A/B Demo")
     st.caption(
         "Grounded (left) vs ungrounded (right). Both use the same MiniMax-M3 model; "
-        "only the Agent Builder MCP tools differ."
+        "the grounded agent has access to four local SQLite retrieval tools."
     )
 
     questions = _load_eval_questions()
