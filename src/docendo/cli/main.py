@@ -9,12 +9,12 @@ from pathlib import Path
 import typer
 
 from docendo.config import get_settings
-from docendo.eval.dataset import load_dataset
-from docendo.eval.report import generate_report
-from docendo.eval.runner import run_eval
+from docendo.eval.cases import load_dataset
+from docendo.eval.summarize import generate_report
+from docendo.eval.driver import run_eval
 from docendo.exceptions import BFSIRBIError
-from docendo.ingestion.pipeline import run_ingestion
-from docendo.ingestion.rbi_scraper import discover_and_download
+from docendo.ingestion.ingest import run_ingestion
+from docendo.ingestion.scraper import discover_and_download
 from docendo.logging import configure_logging, get_logger
 
 app = typer.Typer(
@@ -122,8 +122,8 @@ def report(
     for line in results.read_text(encoding="utf-8").splitlines():
         if line.strip():
             raw.append(json.loads(line))
-    from docendo.eval.hallucination import HallucinationResult
-    from docendo.eval.runner import CaseResult
+    from docendo.eval.judge import HallucinationResult
+    from docendo.eval.driver import CaseResult
 
     cases: list[CaseResult] = []
     for r in raw:
@@ -216,7 +216,7 @@ def doctor(
     ),
 ) -> None:
     """Run local diagnostics: SQLite, vector extension, embedding/tokenizer reachability."""
-    from docendo.cli.doctor import run_doctor
+    from docendo.cli.checkup import run_doctor
 
     rc = run_doctor(do_embedding=not no_embedding, do_tokenizer=not no_tokenizer)
     raise typer.Exit(code=rc)

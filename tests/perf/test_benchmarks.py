@@ -21,8 +21,8 @@ from unittest.mock import patch
 import pytest
 
 from docendo.config import reset_settings_cache
-from docendo.retrieval.factory import reset_retriever_cache
-from docendo.retrieval.sqlite_store import SQLiteStore
+from docendo.retrieval._internal import reset_retriever_cache
+from docendo.retrieval.store import SQLiteStore
 
 DIMS = 8
 _RUN_PERF = os.environ.get("BFSI_RUN_PERF") == "1"
@@ -45,7 +45,7 @@ def _fake_embed(texts, *, settings=None):
 def _populate(store: SQLiteStore, n: int) -> None:
     """Insert ``n`` small synthetic chunks (one per circular)."""
     with patch(
-        "docendo.retrieval.embeddings.async_embed_texts",
+        "docendo.retrieval.embedder.async_embed_texts",
         side_effect=lambda texts, *, settings=None: _fake_embed(texts),
     ):
         import asyncio
@@ -142,14 +142,14 @@ class TestSearchLatency:
             # Warmup: prime the cache and connection.
             for _ in range(5):
                 with patch(
-                    "docendo.retrieval.embeddings.async_embed_texts",
+                    "docendo.retrieval.embedder.async_embed_texts",
                     side_effect=lambda texts, *, settings=None: _fake_embed(texts),
                 ):
                     store.hybrid_search("kyc", 5)
             samples_ms: list[float] = []
             for _ in range(50):
                 with patch(
-                    "docendo.retrieval.embeddings.async_embed_texts",
+                    "docendo.retrieval.embedder.async_embed_texts",
                     side_effect=lambda texts, *, settings=None: _fake_embed(texts),
                 ):
                     start = time.perf_counter()
@@ -179,7 +179,7 @@ class TestReingestSkip:
             _populate(store, 50)
 
             with patch(
-                "docendo.retrieval.embeddings.async_embed_texts",
+                "docendo.retrieval.embedder.async_embed_texts",
                 side_effect=lambda texts, *, settings=None: _fake_embed(texts),
             ) as embed_mock:
                 # Simulate the re-ingest skip-check for all 50 chunks.

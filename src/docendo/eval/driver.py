@@ -15,8 +15,8 @@ from typing import Any
 
 from docendo.agent import make_agent
 from docendo.config import Settings, get_settings
-from docendo.eval.dataset import EvalCase
-from docendo.eval.hallucination import HallucinationResult, aevaluate_answer
+from docendo.eval.cases import EvalCase
+from docendo.eval.judge import HallucinationResult, aevaluate_answer
 from docendo.logging import get_logger
 from docendo.models import RBIAnswer
 

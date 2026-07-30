@@ -20,8 +20,8 @@ from unittest.mock import patch
 import pytest
 
 from docendo.config import reset_settings_cache
-from docendo.retrieval.factory import reset_retriever_cache
-from docendo.retrieval.sqlite_store import SQLiteStore, _fts_escape
+from docendo.retrieval._internal import reset_retriever_cache
+from docendo.retrieval.store import SQLiteStore, _fts_escape
 
 DIMS = 8  # small for tests
 
@@ -131,7 +131,7 @@ class TestRoundTrip:
         try:
             store.ensure_schema()
             with patch(
-                "docendo.retrieval.embeddings.async_embed_texts",
+                "docendo.retrieval.embedder.async_embed_texts",
                 side_effect=lambda texts, *, settings: _fake_embed(texts, settings=settings),
             ):
                 recs = [
@@ -148,7 +148,7 @@ class TestRoundTrip:
         try:
             store.ensure_schema()
             with patch(
-                "docendo.retrieval.embeddings.async_embed_texts",
+                "docendo.retrieval.embedder.async_embed_texts",
                 side_effect=lambda texts, *, settings: _fake_embed(texts, settings=settings),
             ):
                 recs = [
@@ -170,7 +170,7 @@ class TestSearch:
         store = SQLiteStore(tmp_db)
         store.ensure_schema()
         with patch(
-            "docendo.retrieval.embeddings.async_embed_texts",
+            "docendo.retrieval.embedder.async_embed_texts",
             side_effect=lambda texts, *, settings: _fake_embed(texts, settings=settings),
         ):
             records = [
@@ -213,7 +213,7 @@ class TestSearch:
             # The vector fake is hash-based and not semantically meaningful,
             # but lexical-only search should still rank A and B above C.
             with patch(
-                "docendo.retrieval.embeddings.async_embed_texts",
+                "docendo.retrieval.embedder.async_embed_texts",
                 side_effect=lambda texts, *, settings=None: [
                     [0.0] * DIMS for _ in texts
                 ],
@@ -230,7 +230,7 @@ class TestSearch:
         try:
             store.ensure_schema()
             with patch(
-                "docendo.retrieval.embeddings.async_embed_texts",
+                "docendo.retrieval.embedder.async_embed_texts",
                 side_effect=lambda texts, *, settings=None: _fake_embed(texts),
             ):
                 rec = {

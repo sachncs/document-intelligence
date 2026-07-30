@@ -10,7 +10,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from docendo.eval.hallucination import (
+from docendo.eval.judge import (
     evaluate_answer,
 )
 
@@ -26,7 +26,7 @@ def _litellm_response(content: str) -> Mock:
 class TestEvaluateAnswer:
     def test_perfect_answer(self, settings: Any) -> None:
         with (
-            patch("docendo.eval.hallucination.completion") as mock,
+            patch("docendo.eval.judge.completion") as mock,
         ):
             mock.side_effect = [
                 _litellm_response('["X is 1.", "Y is 2."]'),
@@ -43,7 +43,7 @@ class TestEvaluateAnswer:
         assert result.hallucination_rate == 0.0
 
     def test_contradicted_and_extra(self, settings: Any) -> None:
-        with patch("docendo.eval.hallucination.completion") as mock:
+        with patch("docendo.eval.judge.completion") as mock:
             mock.side_effect = [
                 _litellm_response('["X is 1.", "Y is 2.", "Z is 3."]'),
                 _litellm_response('{"verdict": "supported", "reason": "ok"}'),
@@ -62,7 +62,7 @@ class TestEvaluateAnswer:
         assert result.hallucination_rate == pytest.approx(2 / 3)
 
     def test_empty_claims(self, settings: Any) -> None:
-        with patch("docendo.eval.hallucination.completion") as mock:
+        with patch("docendo.eval.judge.completion") as mock:
             mock.return_value = _litellm_response("[]")
             result = evaluate_answer("", "X", settings=settings)
         assert result.total_claims == 0

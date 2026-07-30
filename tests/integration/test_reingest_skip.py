@@ -59,20 +59,20 @@ class TestReingestSkip:
 
         with (
             patch(
-                "docendo.ingestion.pipeline.discover_and_download",
+                "docendo.ingestion.ingest.discover_and_download",
                 side_effect=_discover,
             ),
             patch(
-                "docendo.ingestion.pipeline.extract_pdf",
+                "docendo.ingestion.ingest.extract_pdf",
                 side_effect=_fake_extract_pdf,
             ),
             patch(
-                "docendo.retrieval.embeddings.async_embed_texts",
+                "docendo.retrieval.embedder.async_embed_texts",
                 side_effect=lambda texts, *, settings=None: fake_vecs[: len(texts)],
             ) as embed_mock,
         ):
             from docendo.config import reset_settings_cache
-            from docendo.ingestion.pipeline import run_ingestion
+            from docendo.ingestion.ingest import run_ingestion
 
             reset_settings_cache()
             first = run_ingestion(

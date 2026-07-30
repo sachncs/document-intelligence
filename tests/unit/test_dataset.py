@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from docendo.eval.dataset import EvalCase, load_dataset, save_dataset
+from docendo.eval.cases import EvalCase, load_dataset, save_dataset
 
 
 def _sample_cases() -> list[EvalCase]:

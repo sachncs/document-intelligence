@@ -11,9 +11,9 @@ from pathlib import Path
 
 import pytest
 
-from docendo.eval.hallucination import HallucinationResult
-from docendo.eval.report import generate_report, write_jsonl
-from docendo.eval.runner import CaseResult
+from docendo.eval.judge import HallucinationResult
+from docendo.eval.summarize import generate_report, write_jsonl
+from docendo.eval.driver import CaseResult
 
 
 @pytest.fixture
@@ -84,7 +84,7 @@ class TestReportGeneration:
         assert "%" in text
 
     def test_aggregate_metrics(self, sample_results: list[CaseResult]) -> None:
-        from docendo.eval.report import _aggregate
+        from docendo.eval.summarize import _aggregate
 
         rep = _aggregate(sample_results)
         # Grounded: 0/2 + 0/1 averaged = 0

@@ -1,28 +1,34 @@
-"""RBI document ingestion subsystem."""
+"""docendo ingestion subsystem."""
 
-from docendo.ingestion.pdf import (
-    extract_pdf,
-    extract_text_via_vision,
-    render_page_to_png,
+from docendo.ingestion.reader import (
+    Page,
+    Record,
+    read,
+    read_page,
+    render_page,
 )
-from docendo.ingestion.pipeline import IngestionReport, run_ingestion
-from docendo.ingestion.rbi_scraper import (
-    DiscoveredDocument,
-    DiscoveredMasterDirection,
-    rbi_url,
-    scrape_index_pages,
+from docendo.ingestion.scraper import (
+    Direction,
+    Found,
+    discover,
+    download,
+    scrape,
+    url,
 )
-from docendo.models import ExtractedDocument
+from docendo.ingestion.ingest import Report, run
 
 __all__ = [
-    "DiscoveredDocument",
-    "DiscoveredMasterDirection",
-    "ExtractedDocument",
-    "IngestionReport",
-    "extract_pdf",
-    "extract_text_via_vision",
-    "rbi_url",
-    "render_page_to_png",
-    "run_ingestion",
-    "scrape_index_pages",
+    "Direction",
+    "Found",
+    "Page",
+    "Record",
+    "Report",
+    "discover",
+    "download",
+    "read",
+    "read_page",
+    "render_page",
+    "run",
+    "scrape",
+    "url",
 ]

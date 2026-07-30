@@ -1,5 +1,5 @@
 """Streamlit demo UI."""
 
-from docendo.ui.streamlit_app import main
+from docendo.ui.app import main
 
 __all__ = ["main"]

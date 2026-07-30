@@ -68,7 +68,7 @@ class TestRetrieverCaching:
         monkeypatch.setenv("BFSI_SQLITE_PATH", str(db))
         monkeypatch.setenv("BFSI_EMBEDDING_DIMS", "4")
         reset_settings_cache()
-        from docendo.retrieval.factory import get_retriever, reset_retriever_cache
+        from docendo.retrieval._internal import get_retriever, reset_retriever_cache
 
         reset_retriever_cache()
         a = get_retriever()

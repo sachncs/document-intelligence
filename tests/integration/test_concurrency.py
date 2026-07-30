@@ -11,8 +11,8 @@ from unittest.mock import patch
 import pytest
 
 from docendo.config import reset_settings_cache
-from docendo.retrieval.factory import reset_retriever_cache
-from docendo.retrieval.sqlite_store import SQLiteStore
+from docendo.retrieval._internal import reset_retriever_cache
+from docendo.retrieval.store import SQLiteStore
 
 DIMS = 4
 
@@ -109,7 +109,7 @@ class TestConcurrency:
                 store.upsert_chunks(f"C{i}", [_record(f"C{i}", f"kyc rule {i}", f"h{i}")])
 
             with patch(
-                "docendo.retrieval.embeddings.async_embed_texts",
+                "docendo.retrieval.embedder.async_embed_texts",
                 side_effect=lambda texts, *, settings=None: [_normalize([0.0] * DIMS) for _ in texts],
             ):
 

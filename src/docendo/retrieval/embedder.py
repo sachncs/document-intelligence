@@ -1,8 +1,11 @@
 """LiteLLM embedding wrapper with batching, retries, and a process-local cache.
 
-Embeddings are cached in memory keyed by ``(model, dims, sha256(text))``. The
-on-disk SQLite store is the persistent cache; this in-memory cache avoids
+Embeddings are cached in memory keyed by ``(vector_id, dims, sha256(text))``.
+The on-disk SQLite store is the persistent cache; this in-memory cache avoids
 re-embedding the same text within a single process.
+
+Empty vectors raise ``EmbeddingProviderError`` immediately rather than
+returning ``[]`` (which would later crash sqlite-vector).
 """
 
 from __future__ import annotations
@@ -13,47 +16,44 @@ import math
 from collections import OrderedDict
 from typing import Any
 
-import litellm
+import litellm  # type: ignore[import-untyped]
 
 from docendo.config import Settings, get_settings
 from docendo.exceptions import EmbeddingProviderError
 
+
 _CACHE_MAX = 8192
-_CACHE: OrderedDict[tuple[Any, ...], list[float]] = OrderedDict()
+_CACHE: "OrderedDict[tuple[Any, ...], list[float]]" = OrderedDict()
 
 
-def _hash(text: str) -> str:
+def hash(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
-def _cache_key(text: str, settings: Settings) -> tuple[Any, ...]:
-    return (
-        _hash(text),
-        settings.litellm_embedding_model,
-        settings.bfsi_embedding_dims,
-    )
+def key(text: str, settings: Settings) -> tuple[Any, ...]:
+    return (hash(text), settings.vector_id, settings.vector_dims)
 
 
-def _cache_get(key: tuple[Any, ...]) -> list[float] | None:
+def get(key: tuple[Any, ...]) -> list[float] | None:
     if key not in _CACHE:
         return None
     _CACHE.move_to_end(key)
     return _CACHE[key]
 
 
-def _cache_set(key: tuple[Any, ...], vec: list[float]) -> None:
+def put(key: tuple[Any, ...], vec: list[float]) -> None:
     _CACHE[key] = vec
     _CACHE.move_to_end(key)
     while len(_CACHE) > _CACHE_MAX:
         _CACHE.popitem(last=False)
 
 
-def reset_embedding_cache() -> None:
+def reset() -> None:
     """Clear the in-memory embedding cache (used by tests)."""
     _CACHE.clear()
 
 
-async def async_embed_texts(
+async def aembed(
     texts: list[str],
     *,
     settings: Settings | None = None,
@@ -61,15 +61,15 @@ async def async_embed_texts(
     """Embed ``texts`` via LiteLLM in batches.
 
     Returns one vector per input, in input order. Each vector has length
-    ``settings.bfsi_embedding_dims``; a length mismatch raises
+    ``settings.vector_dims``; a length mismatch raises
     :class:`EmbeddingProviderError`.
     """
     settings = settings or get_settings()
     if not texts:
         return []
 
-    batch_size = max(1, settings.bfsi_embedding_batch_size)
-    api_base = settings.bfsi_embedding_api_base.rstrip("/")
+    batch_size = max(1, settings.vector_batch)
+    api_base = settings.vector_base.rstrip("/")
     if not api_base.endswith("/v1"):
         api_base = f"{api_base}/v1"
 
@@ -77,7 +77,7 @@ async def async_embed_texts(
     uncached_idx: list[int] = []
 
     for i, t in enumerate(texts):
-        hit = _cache_get(_cache_key(t, settings))
+        hit = get(key(t, settings))
         if hit is not None:
             vectors[i] = hit
         else:
@@ -93,22 +93,22 @@ async def async_embed_texts(
                 batch = uncached_idx[start : start + batch_size]
                 batch_texts = [texts[i] for i in batch]
                 resp = await litellm.aembedding(
-                    model=settings.litellm_embedding_model,
+                    model=settings.vector_id,
                     input=batch_texts,
-                    api_key=settings.bfsi_embedding_api_key,
+                    api_key=settings.vector_key,
                     api_base=api_base,
-                    timeout=settings.bfsi_llm_timeout,
+                    timeout=settings.chat_timeout,
                 )
                 for offset, item in enumerate(resp["data"]):
                     vec = list(item["embedding"])
-                    if len(vec) != settings.bfsi_embedding_dims:
+                    if len(vec) != settings.vector_dims:
                         raise EmbeddingProviderError(
                             f"Embedding dim mismatch: expected "
-                            f"{settings.bfsi_embedding_dims}, got {len(vec)}. "
-                            "Update BFSI_EMBEDDING_DIMS or pick a different model."
+                            f"{settings.vector_dims}, got {len(vec)}. "
+                            "Update VECTOR_DIMS or pick a different model."
                         )
                     vectors[batch[offset]] = vec
-                    _cache_set(_cache_key(batch_texts[offset], settings), vec)
+                    put(key(batch_texts[offset], settings), vec)
             break
         except EmbeddingProviderError:
             raise
@@ -117,18 +117,23 @@ async def async_embed_texts(
             if attempt == 2:
                 break
             await asyncio.sleep(0.5 * (2**attempt))
-    else:  # pragma: no cover - loop exhausted without break
-        pass
     if last_exc is not None and any(v is None for v in vectors):
         raise EmbeddingProviderError(
-            f"Embedding call failed for {settings.litellm_embedding_model!r} "
-            f"at {api_base!r}: {last_exc}"
+            f"Embedding call failed for {settings.vector_id!r} at {api_base!r}: {last_exc}"
         ) from last_exc
 
-    return [v if v is not None else [] for v in vectors]
+    # Final safety net: any remaining None means the batch loop exited
+    # without raising and without filling — refuse to return partial results.
+    if any(v is None for v in vectors):
+        missing = [i for i, v in enumerate(vectors) if v is None]
+        raise EmbeddingProviderError(
+            f"Embedding returned no vector for inputs at indices {missing}"
+        )
+
+    return vectors  # type: ignore[return-value]
 
 
-def cosine_similarity(a: list[float], b: list[float]) -> float:
+def cosine(a: list[float], b: list[float]) -> float:
     """Cosine similarity between two equal-length vectors; 0.0 on size mismatch."""
     if len(a) != len(b) or not a:
         return 0.0
@@ -140,4 +145,4 @@ def cosine_similarity(a: list[float], b: list[float]) -> float:
     return dot / (na * nb)
 
 
-__all__ = ["async_embed_texts", "cosine_similarity", "reset_embedding_cache"]
+__all__ = ["aembed", "cosine", "reset"]

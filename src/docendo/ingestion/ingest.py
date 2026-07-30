@@ -1,7 +1,7 @@
 """End-to-end ingestion pipeline: scrape → extract → chunk → embed → store.
 
 The pipeline is backend-neutral except for one call: ``retriever.upsert_chunks``.
-Each chunk is embedded once via :func:`docendo.retrieval.embeddings.async_embed_texts`,
+Each chunk is embedded once via :func:`docendo.retrieval.embedder.async_embed_texts`,
 and the SQLite store receives pre-computed vectors (no SQL/embedding coupling).
 """
 
@@ -16,11 +16,11 @@ from typing import Any
 
 from docendo.config import Settings, get_settings
 from docendo.exceptions import StorageError
-from docendo.ingestion.pdf import extract_pdf
-from docendo.ingestion.rbi_scraper import discover_and_download
+from docendo.ingestion.reader import extract_pdf
+from docendo.ingestion.scraper import discover_and_download
 from docendo.logging import get_logger
 from docendo.models import ExtractedDocument
-from docendo.retrieval.tokenizer import chunk_text
+from docendo.retrieval.chunker import chunk_text
 
 logger = get_logger(__name__)
 
@@ -102,7 +102,7 @@ async def _process_one(
 
     Returns (inserted, skipped, error_message_or_none).
     """
-    from docendo.retrieval.embeddings import async_embed_texts
+    from docendo.retrieval.embedder import async_embed_texts
 
     content_hash = _content_hash(path)
     try:
@@ -155,7 +155,7 @@ def run_ingestion(
     settings: Settings | None = None,
 ) -> IngestionReport:
     """Run the full ingestion pipeline synchronously."""
-    from docendo.retrieval.factory import get_retriever
+    from docendo.retrieval._internal import get_retriever
 
     settings = settings or get_settings()
     settings.require_for_run()

@@ -1,9 +1,8 @@
 """Gigatoken wrapper for chunking.
 
-Caches the per-process :class:`gigatoken.Tokenizer` instance so the model
-load happens at most once. Chunking decodes slices back to text so the
-downstream FTS5 unicode61 tokenizer and the embedding model see plain text
-(not token ids).
+Caches the per-process tokenizer instance so the model load happens at most
+once. Chunking decodes slices back to text so the downstream FTS5 unicode61
+tokenizer and the embedding model see plain text (not token ids).
 """
 
 from __future__ import annotations
@@ -16,37 +15,36 @@ from docendo.exceptions import ConfigurationError
 
 
 @lru_cache(maxsize=1)
-def _tokenizer() -> Any:
+def tokenizer() -> Any:
     """Lazy-load and cache the gigatoken tokenizer."""
-    import gigatoken as gt
+    import gigatoken as gt  # type: ignore[import-untyped]
 
     settings = get_settings()
-    return gt.Tokenizer(settings.bfsi_tokenizer_model)
+    return gt.Tokenizer(settings.tokenizer_model)
 
 
-def reset_tokenizer_cache() -> None:
+def reset() -> None:
     """Clear the tokenizer cache (used by tests)."""
-    _tokenizer.cache_clear()
+    tokenizer.cache_clear()
 
 
 def encode(text: str, settings: Settings | None = None) -> list[int]:
     """Encode text to token ids using the configured tokenizer."""
     settings = settings or get_settings()
     try:
-        result = _tokenizer().encode(text)
+        result = tokenizer().encode(text)
     except Exception as exc:
         raise ConfigurationError(
-            f"Failed to load tokenizer {settings.bfsi_tokenizer_model!r}: {exc}. "
+            f"Failed to load tokenizer {settings.tokenizer_model!r}: {exc}. "
             "Check the model name and that gigatoken is installed."
         ) from exc
-    # gigatoken may return a numpy array or list; coerce to a plain list of ints.
     try:
         return [int(x) for x in result]
     except TypeError:
         return list(result)
 
 
-def chunk_text(
+def chunk(
     text: str,
     *,
     chunk_size: int,
@@ -66,7 +64,7 @@ def chunk_text(
     if len(ids) == 0:
         return []
 
-    tok = _tokenizer()
+    tok = tokenizer()
     chunks: list[str] = []
     step = chunk_size - overlap
     for start in range(0, len(ids), step):
@@ -84,4 +82,4 @@ def chunk_text(
     return chunks
 
 
-__all__ = ["chunk_text", "encode", "reset_tokenizer_cache"]
+__all__ = ["chunk", "encode", "reset"]

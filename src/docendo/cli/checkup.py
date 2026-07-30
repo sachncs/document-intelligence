@@ -54,7 +54,7 @@ async def _check_embeddings(settings: Settings) -> tuple[bool, str]:
     if not settings.bfsi_embedding_api_key or not settings.bfsi_embedding_api_base:
         return False, "FAIL: BFSI_EMBEDDING_API_KEY/BFSI_EMBEDDING_API_BASE not set"
     try:
-        from docendo.retrieval.embeddings import async_embed_texts
+        from docendo.retrieval.embedder import async_embed_texts
 
         start = time.perf_counter()
         vecs = await async_embed_texts(["ping"], settings=settings)

@@ -12,7 +12,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from docendo.exceptions import PDFExtractionError
-from docendo.ingestion.pdf import (
+from docendo.ingestion.reader import (
     _parse_issue_date,
     extract_pdf,
     extract_text_via_vision,
@@ -36,7 +36,7 @@ class TestParseIssueDate:
 
 class TestVisionAPI:
     def test_extract_text_via_vision(self, settings: Any) -> None:
-        with patch("docendo.ingestion.pdf.completion") as mock:
+        with patch("docendo.ingestion.reader.completion") as mock:
             resp = MagicMock()
             resp.choices = [MagicMock()]
             resp.choices[0].message.content = "Extracted text."
@@ -47,7 +47,7 @@ class TestVisionAPI:
     def test_extract_text_via_vision_empty_response(self, settings: Any) -> None:
         from docendo.exceptions import VisionAPIError
 
-        with patch("docendo.ingestion.pdf.completion") as mock:
+        with patch("docendo.ingestion.reader.completion") as mock:
             resp = MagicMock()
             resp.choices = [MagicMock()]
             resp.choices[0].message.content = ""

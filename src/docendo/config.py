@@ -26,53 +26,54 @@ class Settings(BaseSettings):
         env_prefix="",
     )
 
-    # --- MiniMax (LLM) -----------------------------------------------------
-    minimax_base_url: str = Field(
+    # --- Chat (LLM) -----------------------------------------------------
+    chat_url: str = Field(
         default="https://api.minimax.io/v1",
-        description="OpenAI-compatible base URL for MiniMax.",
+        description="OpenAI-compatible base URL for the chat model.",
     )
-    minimax_api_key: str = Field(
+    chat_key: str = Field(
         default="",
-        description="MiniMax API key. May be empty during local index builds.",
+        description="Chat model API key. May be empty during local index builds.",
     )
-    minimax_model: str = Field(
+    chat_model: str = Field(
         default="MiniMax-M3",
-        description="MiniMax model name (LiteLLM provider: minimax/<name>).",
+        description="Chat model name (LiteLLM provider prefix is added by Settings.chat).",
     )
+    chat_timeout: int = Field(default=60, ge=5, le=600)
 
     # --- Local SQLite store ------------------------------------------------
-    bfsi_sqlite_path: Path = Field(
-        default=Path("data/processed/rbi-circulars.sqlite3"),
+    store_path: Path = Field(
+        default=Path("data/processed/docendo.sqlite3"),
         description="Path to the SQLite database file.",
     )
 
     # --- Embedding provider (Qwen3-matched) --------------------------------
-    bfsi_embedding_provider: str = Field(
+    vector_provider: str = Field(
         default="openai_compatible",
         description=(
             "LiteLLM provider prefix for embeddings. "
-            "Use 'openai_compatible' with BFSI_EMBEDDING_API_BASE for Qwen/DashScope/vLLM/etc."
+            "Use 'openai_compatible' with VECTOR_BASE for Qwen/DashScope/vLLM/etc."
         ),
     )
-    bfsi_embedding_model: str = Field(
+    vector_model: str = Field(
         default="Qwen/Qwen3-Embedding-8B",
-        description="Embedding model id. Must match BFSI_TOKENIZER_MODEL.",
+        description="Embedding model id. Must match TOKENIZER_MODEL.",
     )
-    bfsi_embedding_dims: int = Field(
+    vector_dims: int = Field(
         default=4096,
         ge=2,
         le=8192,
         description="Embedding vector dimension. Verified at startup by a live probe.",
     )
-    bfsi_embedding_api_key: str = Field(
+    vector_key: str = Field(
         default="",
         description="API key for the embedding endpoint.",
     )
-    bfsi_embedding_api_base: str = Field(
+    vector_base: str = Field(
         default="",
         description="Base URL for an OpenAI-compatible /v1/embeddings endpoint.",
     )
-    bfsi_embedding_batch_size: int = Field(
+    vector_batch: int = Field(
         default=64,
         ge=1,
         le=1024,
@@ -80,50 +81,51 @@ class Settings(BaseSettings):
     )
 
     # --- Tokenizer (must match the embedding model) -----------------------
-    bfsi_tokenizer_model: str = Field(
+    tokenizer_model: str = Field(
         default="Qwen/Qwen3-Embedding-8B",
-        description="HuggingFace model id for the tokenizer. Must match BFSI_EMBEDDING_MODEL.",
+        description="HuggingFace model id for the tokenizer. Must match VECTOR_MODEL.",
     )
-    bfsi_allow_tokenizer_mismatch: bool = Field(
+    tokenizer_allow_mismatch: bool = Field(
         default=False,
-        description="If True, allow BFSI_TOKENIZER_MODEL != BFSI_EMBEDDING_MODEL.",
+        description="If True, allow TOKENIZER_MODEL != VECTOR_MODEL.",
     )
 
     # --- Chunking (gigatoken tokens) ---------------------------------------
-    bfsi_chunk_size_tokens: int = Field(default=384, ge=64, le=8192)
-    bfsi_chunk_overlap_tokens: int = Field(default=64, ge=0, le=2048)
-    bfsi_max_chars_per_result: int = Field(default=400, ge=50, le=4000)
+    chunk_size: int = Field(default=384, ge=64, le=8192)
+    chunk_overlap: int = Field(default=64, ge=0, le=2048)
+    chunk_max_chars: int = Field(default=400, ge=50, le=4000)
+
+    # --- Retrieval --------------------------------------------------------
+    rrf_k: int = Field(default=60, ge=1, le=1000)
 
     # --- Pipeline knobs ----------------------------------------------------
-    rbi_fetch_max_docs: int = Field(default=120, ge=1, le=1000)
-    bfsi_index_name: str = Field(default="rbi-circulars")
-    bfsi_eval_concurrency: int = Field(default=5, ge=1, le=20)
-    bfsi_eval_limit: int = Field(default=40, ge=1, le=500)
-    bfsi_log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = Field(default="INFO")
-    bfsi_http_timeout: int = Field(default=30, ge=5, le=300)
-    bfsi_llm_timeout: int = Field(default=60, ge=5, le=600)
+    fetch_max_docs: int = Field(default=120, ge=1, le=1000)
+    eval_concurrency: int = Field(default=5, ge=1, le=20)
+    eval_limit: int = Field(default=40, ge=1, le=500)
+    log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = Field(default="INFO")
+    http_timeout: int = Field(default=30, ge=5, le=300)
 
     # --- Paths -------------------------------------------------------------
     data_raw_dir: Path = Field(default=Path("data/raw"))
     data_processed_dir: Path = Field(default=Path("data/processed"))
     reports_dir: Path = Field(default=Path("reports"))
-    eval_dataset_path: Path = Field(default=Path("eval/dataset.yaml"))
+    eval_dataset_path: Path = Field(default=Path("eval/cases.yaml"))
 
     # --- Internal helpers --------------------------------------------------
     def require_llm(self) -> None:
-        """Raise if the LLM provider is not configured."""
-        if not self.minimax_api_key:
+        """Raise if the chat model is not configured."""
+        if not self.chat_key:
             raise ConfigurationError(
-                "MINIMAX_API_KEY is required for LLM operations. "
+                "CHAT_KEY is required for LLM operations. "
                 "Set it in .env or pass via env vars."
             )
 
     def require_embeddings(self) -> None:
         """Raise if the embedding provider is not configured."""
-        if not self.bfsi_embedding_api_key or not self.bfsi_embedding_api_base:
+        if not self.vector_key or not self.vector_base:
             raise ConfigurationError(
-                "BFSI_EMBEDDING_API_KEY and BFSI_EMBEDDING_API_BASE are required for "
-                "embeddings. Configure the OpenAI-compatible Qwen endpoint in .env."
+                "VECTOR_KEY and VECTOR_BASE are required for embeddings. "
+                "Configure the OpenAI-compatible Qwen endpoint in .env."
             )
 
     def require_for_run(self) -> None:
@@ -134,36 +136,35 @@ class Settings(BaseSettings):
     def validate_tokenizer_match(self) -> None:
         """Refuse to run when the embedding model id differs from the tokenizer id."""
         if (
-            self.bfsi_tokenizer_model != self.bfsi_embedding_model
-            and not self.bfsi_allow_tokenizer_mismatch
+            self.tokenizer_model != self.vector_model
+            and not self.tokenizer_allow_mismatch
         ):
             raise ConfigurationError(
-                f"BFSI_TOKENIZER_MODEL={self.bfsi_tokenizer_model!r} does not match "
-                f"BFSI_EMBEDDING_MODEL={self.bfsi_embedding_model!r}. "
-                "Set BFSI_ALLOW_TOKENIZER_MISMATCH=1 to override, or align the values."
+                f"TOKENIZER_MODEL={self.tokenizer_model!r} does not match "
+                f"VECTOR_MODEL={self.vector_model!r}. "
+                "Set TOKENIZER_ALLOW_MISMATCH=1 to override, or align the values."
             )
 
     @model_validator(mode="after")
-    def _validate_chunk_overlap(self) -> Settings:
-        if self.bfsi_chunk_overlap_tokens >= self.bfsi_chunk_size_tokens:
+    def validate_chunk_overlap(self) -> Settings:
+        if self.chunk_overlap >= self.chunk_size:
             raise ConfigurationError(
-                "BFSI_CHUNK_OVERLAP_TOKENS must be strictly less than BFSI_CHUNK_SIZE_TOKENS."
+                "CHUNK_OVERLAP must be strictly less than CHUNK_SIZE."
             )
         return self
 
     @property
-    def litellm_model(self) -> str:
-        """LiteLLM provider-prefixed model name for the chat LLM."""
-        return f"minimax/{self.minimax_model}"
+    def chat(self) -> str:
+        """LiteLLM provider-prefixed chat model id."""
+        return f"minimax/{self.chat_model}"
 
     @property
-    def litellm_embedding_model(self) -> str:
-        """LiteLLM provider-prefixed model name for the embedding model."""
-        provider = self.bfsi_embedding_provider
-        model = self.bfsi_embedding_model
+    def vector_id(self) -> str:
+        """LiteLLM provider-prefixed embedding model id."""
+        model = self.vector_model
         if "/" in model:
             return model
-        return f"{provider}/{model}"
+        return f"{self.vector_provider}/{model}"
 
 
 @lru_cache(maxsize=1)
@@ -186,7 +187,7 @@ def probe_embedding_dim(
 
     Returns the observed embedding length. Raises ``ConfigurationError`` on
     network/credential failures or when the observed dimension does not match
-    ``BFSI_EMBEDDING_DIMS``.
+    ``VECTOR_DIMS``.
     """
     import asyncio
 
@@ -196,15 +197,15 @@ def probe_embedding_dim(
     settings.validate_tokenizer_match()
     settings.require_embeddings()
 
-    api_base = settings.bfsi_embedding_api_base.rstrip("/")
+    api_base = settings.vector_base.rstrip("/")
     if not api_base.endswith("/v1"):
         api_base = f"{api_base}/v1"
 
     async def _probe() -> Any:
         return await litellm.aembedding(
-            model=settings.litellm_embedding_model,
+            model=settings.vector_id,
             input=["dimension probe"],
-            api_key=settings.bfsi_embedding_api_key,
+            api_key=settings.vector_key,
             api_base=api_base,
             timeout=timeout,
         )
@@ -213,9 +214,8 @@ def probe_embedding_dim(
         resp = asyncio.run(_probe())
     except Exception as exc:
         raise ConfigurationError(
-            f"Embedding probe failed for {settings.litellm_embedding_model!r} at "
-            f"{api_base!r}: {exc}. Check BFSI_EMBEDDING_API_KEY, BFSI_EMBEDDING_API_BASE, "
-            "and the model id."
+            f"Embedding probe failed for {settings.vector_id!r} at "
+            f"{api_base!r}: {exc}. Check VECTOR_KEY, VECTOR_BASE, and the model id."
         ) from exc
 
     try:
@@ -225,11 +225,11 @@ def probe_embedding_dim(
             f"Embedding probe returned an unexpected payload: {resp!r}"
         ) from exc
 
-    if observed != settings.bfsi_embedding_dims:
+    if observed != settings.vector_dims:
         raise ConfigurationError(
             f"Embedding probe dimension {observed} does not match "
-            f"BFSI_EMBEDDING_DIMS={settings.bfsi_embedding_dims}. "
-            "Update BFSI_EMBEDDING_DIMS to the observed value."
+            f"VECTOR_DIMS={settings.vector_dims}. "
+            "Update VECTOR_DIMS to the observed value."
         )
     return observed
 

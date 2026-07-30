@@ -6,7 +6,7 @@ import json
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from docendo.eval.runner import CaseResult
+from docendo.eval.driver import CaseResult
 
 
 @dataclass

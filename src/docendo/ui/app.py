@@ -12,8 +12,8 @@ import streamlit as st
 
 from docendo.agent import make_agent
 from docendo.config import get_settings
-from docendo.eval.dataset import load_dataset
-from docendo.eval.hallucination import aevaluate_answer
+from docendo.eval.cases import load_dataset
+from docendo.eval.judge import aevaluate_answer
 from docendo.logging import get_logger
 from docendo.models import RBIAnswer
 

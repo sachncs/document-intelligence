@@ -6,7 +6,7 @@ import io
 
 import pytest
 
-from docendo.cli.doctor import run_doctor
+from docendo.cli.checkup import run_doctor
 from docendo.config import reset_settings_cache
 
 
