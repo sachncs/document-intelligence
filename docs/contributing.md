@@ -3,8 +3,8 @@
 ## Development setup
 
 ```bash
-git clone https://github.com/sachin/bfsi-rbi
-cd bfsi-rbi
+git clone https://github.com/sachin/docendo
+cd docendo
 pip install -e ".[dev]"
 pre-commit install
 ```

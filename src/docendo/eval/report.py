@@ -6,7 +6,7 @@ import json
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from bfsi_rbi.eval.runner import CaseResult
+from docendo.eval.runner import CaseResult
 
 
 @dataclass

@@ -1,3 +1,3 @@
 # Models
 
-::: bfsi_rbi.models
+::: docendo.models

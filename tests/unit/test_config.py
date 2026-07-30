@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from bfsi_rbi.config import Settings
-from bfsi_rbi.exceptions import ConfigurationError
+from docendo.config import Settings
+from docendo.exceptions import ConfigurationError
 
 
 class TestSettings:

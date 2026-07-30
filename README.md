@@ -1,4 +1,4 @@
-# bfsi-rbi
+# docendo
 
 > A grounded RAG agent for BFSI (Banking, Financial Services, Insurance) document intelligence.
 > Built on Pydantic AI + LiteLLM (MiniMax-M3) + local SQLite + Qwen3-Embedding-8B.
@@ -45,12 +45,12 @@ Pydantic AI agent:
 pip install -e .
 cp .env.example .env
 # Edit .env: MINIMAX_API_KEY + BFSI_EMBEDDING_* (OpenAI-compatible Qwen endpoint).
-bfsi-rbi doctor
-bfsi-rbi fetch
-bfsi-rbi ingest
-bfsi-rbi eval --limit 5
-bfsi-rbi report
-bfsi-rbi demo
+docendo doctor
+docendo fetch
+docendo ingest
+docendo eval --limit 5
+docendo report
+docendo demo
 ```
 
 ## Evaluation
@@ -61,7 +61,7 @@ bfsi-rbi demo
 |---|---|---|---|
 | **SQLite (local-only)** | _TBD_ | _TBD_ | _TBD_ |
 
-_Numbers populated after the first `bfsi-rbi eval` run. See
+_Numbers populated after the first `docendo eval` run. See
 `reports/eval_report.md`._
 
 ## Documentation
@@ -83,10 +83,10 @@ Full docs: `mkdocs serve` → http://127.0.0.1:8000
 ```bash
 pytest tests/unit                                              # unit tests
 pytest tests/integration -m "not perf"                         # offline integration
-bfsi-rbi doctor --no-embedding --no-tokenizer                  # offline diagnostics
+docendo doctor --no-embedding --no-tokenizer                  # offline diagnostics
 ruff check src tests                                           # lint
 ruff format src tests                                          # format
-mypy src/bfsi_rbi                                              # type check
+mypy src/docendo                                              # type check
 ```
 
 ## License

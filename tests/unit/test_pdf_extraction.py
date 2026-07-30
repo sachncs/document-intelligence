@@ -11,8 +11,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from bfsi_rbi.exceptions import PDFExtractionError
-from bfsi_rbi.ingestion.pdf import (
+from docendo.exceptions import PDFExtractionError
+from docendo.ingestion.pdf import (
     _parse_issue_date,
     extract_pdf,
     extract_text_via_vision,
@@ -36,7 +36,7 @@ class TestParseIssueDate:
 
 class TestVisionAPI:
     def test_extract_text_via_vision(self, settings: Any) -> None:
-        with patch("bfsi_rbi.ingestion.pdf.completion") as mock:
+        with patch("docendo.ingestion.pdf.completion") as mock:
             resp = MagicMock()
             resp.choices = [MagicMock()]
             resp.choices[0].message.content = "Extracted text."
@@ -45,9 +45,9 @@ class TestVisionAPI:
         assert text == "Extracted text."
 
     def test_extract_text_via_vision_empty_response(self, settings: Any) -> None:
-        from bfsi_rbi.exceptions import VisionAPIError
+        from docendo.exceptions import VisionAPIError
 
-        with patch("bfsi_rbi.ingestion.pdf.completion") as mock:
+        with patch("docendo.ingestion.pdf.completion") as mock:
             resp = MagicMock()
             resp.choices = [MagicMock()]
             resp.choices[0].message.content = ""

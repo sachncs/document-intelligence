@@ -41,8 +41,8 @@ The judge LLM is the same MiniMax-M3 chat model. For each answer it:
 ## CLI
 
 ```bash
-bfsi-rbi eval --limit 40 --concurrency 5
-bfsi-rbi report reports/results.jsonl
+docendo eval --limit 40 --concurrency 5
+docendo report reports/results.jsonl
 ```
 
 ## Report contents

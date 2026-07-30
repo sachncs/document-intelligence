@@ -5,8 +5,8 @@ Contributions are welcome. Please open an issue first to discuss substantial cha
 ## Development setup
 
 ```bash
-git clone https://github.com/sachin/bfsi-rbi
-cd bfsi-rbi
+git clone https://github.com/sachin/docendo
+cd docendo
 pip install -e ".[dev]"
 pre-commit install
 ```
@@ -17,7 +17,7 @@ pre-commit install
 2. Make changes
 3. Run tests: `pytest tests/unit`
 4. Run lint: `ruff check src tests && ruff format src tests`
-5. Run typecheck: `mypy src/bfsi_rbi`
+5. Run typecheck: `mypy src/docendo`
 6. Commit & push
 7. Open a Pull Request
 

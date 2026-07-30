@@ -6,8 +6,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from bfsi_rbi.agent import GRCIT_SYSTEM_PROMPT, _cached_litellm_model, _tool_functions, make_agent
-from bfsi_rbi.config import reset_settings_cache
+from docendo.agent import GRCIT_SYSTEM_PROMPT, _cached_litellm_model, _tool_functions, make_agent
+from docendo.config import reset_settings_cache
 
 
 @pytest.fixture(autouse=True)
@@ -25,7 +25,7 @@ def _env(monkeypatch: pytest.MonkeyPatch) -> None:
 
 class TestAgentFactory:
     def test_grounded_has_four_tools(self) -> None:
-        with patch("bfsi_rbi.agent.Agent") as mock_agent:
+        with patch("docendo.agent.Agent") as mock_agent:
             mock_agent.return_value = MagicMock()
             make_agent(grounded=True)
         tools_arg = mock_agent.call_args.kwargs.get("tools")
@@ -40,17 +40,17 @@ class TestAgentFactory:
         }
 
     def test_ungrounded_has_no_tools(self) -> None:
-        with patch("bfsi_rbi.agent.Agent") as mock_agent:
+        with patch("docendo.agent.Agent") as mock_agent:
             mock_agent.return_value = MagicMock()
             make_agent(grounded=False)
         tools_arg = mock_agent.call_args.kwargs.get("tools")
         assert tools_arg == []
 
     def test_grounded_uses_rbi_answer_output_type(self) -> None:
-        with patch("bfsi_rbi.agent.Agent") as mock_agent:
+        with patch("docendo.agent.Agent") as mock_agent:
             mock_agent.return_value = MagicMock()
             make_agent(grounded=True)
-        from bfsi_rbi.models import RBIAnswer
+        from docendo.models import RBIAnswer
 
         assert mock_agent.call_args.kwargs.get("output_type") is RBIAnswer
 
@@ -68,7 +68,7 @@ class TestRetrieverCaching:
         monkeypatch.setenv("BFSI_SQLITE_PATH", str(db))
         monkeypatch.setenv("BFSI_EMBEDDING_DIMS", "4")
         reset_settings_cache()
-        from bfsi_rbi.retrieval.factory import get_retriever, reset_retriever_cache
+        from docendo.retrieval.factory import get_retriever, reset_retriever_cache
 
         reset_retriever_cache()
         a = get_retriever()

@@ -15,8 +15,8 @@ from typing import Any
 
 import litellm
 
-from bfsi_rbi.config import Settings, get_settings
-from bfsi_rbi.exceptions import EmbeddingProviderError
+from docendo.config import Settings, get_settings
+from docendo.exceptions import EmbeddingProviderError
 
 _CACHE_MAX = 8192
 _CACHE: OrderedDict[tuple[Any, ...], list[float]] = OrderedDict()

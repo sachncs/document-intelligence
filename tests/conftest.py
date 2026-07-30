@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from bfsi_rbi.config import Settings, get_settings, reset_settings_cache
+from docendo.config import Settings, get_settings, reset_settings_cache
 
 
 @pytest.fixture(autouse=True)

@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from functools import lru_cache
 
-from bfsi_rbi.config import Settings, get_settings
-from bfsi_rbi.retrieval.sqlite_store import SQLiteStore
-from bfsi_rbi.retrieval.types import Retriever
+from docendo.config import Settings, get_settings
+from docendo.retrieval.sqlite_store import SQLiteStore
+from docendo.retrieval.types import Retriever
 
 
 @lru_cache(maxsize=4)

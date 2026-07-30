@@ -11,7 +11,7 @@ import sys
 from typing import Final
 
 _CONFIGURED: bool = False
-_LOGGER_NAME: Final[str] = "bfsi_rbi"
+_LOGGER_NAME: Final[str] = "docendo"
 
 
 def configure_logging(level: str = "INFO") -> None:
@@ -42,7 +42,7 @@ def configure_logging(level: str = "INFO") -> None:
 
 
 def get_logger(name: str | None = None) -> logging.Logger:
-    """Return a logger under the bfsi_rbi namespace."""
+    """Return a logger under the docendo namespace."""
     if name is None:
         return logging.getLogger(_LOGGER_NAME)
     if not name.startswith(_LOGGER_NAME):

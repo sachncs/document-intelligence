@@ -23,17 +23,17 @@ RBI PDFs ── pypdf/vision-extract ── gigatoken chunk ── LiteLLM embed
 
 | Layer | Responsibility |
 |---|---|
-| `bfsi_rbi.ingestion.rbi_scraper` | Discovers RBI PDFs and downloads them to `data/raw/`. |
-| `bfsi_rbi.ingestion.pdf` | Extracts text via `pypdf`; falls back to MiniMax vision for scanned pages. |
-| `bfsi_rbi.retrieval.tokenizer` | Gigatoken wrapper. Chunks by token count (default 384, overlap 64). |
-| `bfsi_rbi.retrieval.embeddings` | LiteLLM embedding client. Batched, retried, in-memory LRU cache. |
-| `bfsi_rbi.retrieval.sqlite_store` | SQLite + FTS5 + sqlite-vector backend. Hybrid search via RRF. |
-| `bfsi_rbi.retrieval.factory` | Process-wide singleton retriever, cached on `(path, settings)`. |
-| `bfsi_rbi.retrieval.tools` | Four Pydantic AI tool functions: `hybrid_search`, `get_circular`, `list_recent`, `compare_circulars`. |
-| `bfsi_rbi.agent` | Pydantic AI agent factory. Tools attached when `grounded=True`. |
-| `bfsi_rbi.eval` | Atomic-claim LLM-as-judge evaluation pipeline. |
-| `bfsi_rbi.ui.streamlit_app` | A/B chat demo. |
-| `bfsi_rbi.cli.doctor` | Local diagnostics. |
+| `docendo.ingestion.rbi_scraper` | Discovers RBI PDFs and downloads them to `data/raw/`. |
+| `docendo.ingestion.pdf` | Extracts text via `pypdf`; falls back to MiniMax vision for scanned pages. |
+| `docendo.retrieval.tokenizer` | Gigatoken wrapper. Chunks by token count (default 384, overlap 64). |
+| `docendo.retrieval.embeddings` | LiteLLM embedding client. Batched, retried, in-memory LRU cache. |
+| `docendo.retrieval.sqlite_store` | SQLite + FTS5 + sqlite-vector backend. Hybrid search via RRF. |
+| `docendo.retrieval.factory` | Process-wide singleton retriever, cached on `(path, settings)`. |
+| `docendo.retrieval.tools` | Four Pydantic AI tool functions: `hybrid_search`, `get_circular`, `list_recent`, `compare_circulars`. |
+| `docendo.agent` | Pydantic AI agent factory. Tools attached when `grounded=True`. |
+| `docendo.eval` | Atomic-claim LLM-as-judge evaluation pipeline. |
+| `docendo.ui.streamlit_app` | A/B chat demo. |
+| `docendo.cli.doctor` | Local diagnostics. |
 
 ## Tool surface
 
@@ -86,7 +86,7 @@ FTS5's built-in `unicode61` tokenizer with diacritics removed.
 - **Embedding endpoint down**: `EmbeddingProviderError` propagates out of
   the tool / pipeline with the model id and base URL in the message.
 - **Tokenizer fails to load**: `ConfigurationError` at the first call
-  to `chunk_text`. Surface this early via `bfsi-rbi doctor`.
+  to `chunk_text`. Surface this early via `docendo doctor`.
 - **SQLite corruption**: partial FTS5 entries can be repaired via
   `INSERT INTO chunks_fts(chunks_fts) VALUES('rebuild');`.
 - **Re-ingestion of an unchanged PDF**: skipped at the `content_hash`

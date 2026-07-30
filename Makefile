@@ -30,7 +30,7 @@ format:  ## Format code with ruff
 	$(PYTHON) -m ruff check src tests --fix
 
 typecheck:  ## Run mypy type checker
-	$(PYTHON) -m mypy src/bfsi_rbi
+	$(PYTHON) -m mypy src/docendo
 
 pre-commit:  ## Run all pre-commit hooks
 	$(PYTHON) -m pre_commit run --all-files
@@ -46,30 +46,30 @@ clean:  ## Remove build artifacts
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 
 fetch:  ## Fetch RBI documents
-	bfsi-rbi fetch
+	docendo fetch
 
 ingest:  ## Ingest documents into Elasticsearch
-	bfsi-rbi ingest
+	docendo ingest
 
 setup-inference:  ## Setup ELSER inference endpoint
-	bfsi-rbi setup-inference
+	docendo setup-inference
 
 deploy-tools:  ## Deploy Agent Builder tools to Kibana
-	bfsi-rbi deploy-tools
+	docendo deploy-tools
 
 deploy-agent:  ## Deploy Agent Builder agent to Kibana
-	bfsi-rbi deploy-agent
+	docendo deploy-agent
 
 smoke-mcp:  ## Smoke-test MCP connection
-	bfsi-rbi smoke-mcp
+	docendo smoke-mcp
 
 eval:  ## Run evaluation
-	bfsi-rbi eval
+	docendo eval
 
 report:  ## Generate eval report
-	bfsi-rbi report
+	docendo report
 
 demo:  ## Launch Streamlit demo
-	bfsi-rbi demo
+	docendo demo
 
 all: dev lint typecheck test  ## Full local check

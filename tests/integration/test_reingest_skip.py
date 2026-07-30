@@ -19,7 +19,7 @@ def _write_fake_pdf(path: Path) -> Path:
 
 
 def _fake_extract_pdf(*args, **kwargs):
-    from bfsi_rbi.models import ExtractedDocument, ExtractedPage
+    from docendo.models import ExtractedDocument, ExtractedPage
 
     return ExtractedDocument(
         circular_id=kwargs["circular_id"],
@@ -59,20 +59,20 @@ class TestReingestSkip:
 
         with (
             patch(
-                "bfsi_rbi.ingestion.pipeline.discover_and_download",
+                "docendo.ingestion.pipeline.discover_and_download",
                 side_effect=_discover,
             ),
             patch(
-                "bfsi_rbi.ingestion.pipeline.extract_pdf",
+                "docendo.ingestion.pipeline.extract_pdf",
                 side_effect=_fake_extract_pdf,
             ),
             patch(
-                "bfsi_rbi.retrieval.embeddings.async_embed_texts",
+                "docendo.retrieval.embeddings.async_embed_texts",
                 side_effect=lambda texts, *, settings=None: fake_vecs[: len(texts)],
             ) as embed_mock,
         ):
-            from bfsi_rbi.config import reset_settings_cache
-            from bfsi_rbi.ingestion.pipeline import run_ingestion
+            from docendo.config import reset_settings_cache
+            from docendo.ingestion.pipeline import run_ingestion
 
             reset_settings_cache()
             first = run_ingestion(

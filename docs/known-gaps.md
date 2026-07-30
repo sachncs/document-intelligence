@@ -1,6 +1,6 @@
 # Known gaps
 
-This release of `bfsi-rbi` ships with a single retrieval backend (local SQLite +
+This release of `docendo` ships with a single retrieval backend (local SQLite +
 FTS5 + sqlite-vector) and a single agent runtime (Pydantic AI with direct
 tools). The following items are deliberately deferred.
 
@@ -13,13 +13,13 @@ Elastic backend until the authenticated MCP server (see below) is in place.
 
 ## Authenticated MCP server
 
-`bfsi-rbi` exposes its four retrieval tools to the in-process Pydantic AI
-agent via direct tool functions. There is no `bfsi-rbi serve-mcp` command,
+`docendo` exposes its four retrieval tools to the in-process Pydantic AI
+agent via direct tool functions. There is no `docendo serve-mcp` command,
 no bearer-token middleware, and no public HTTPS endpoint yet.
 
 The future server would:
 
-- Run the same `bfsi_rbi.retrieval.tools` functions behind a `mcp.server.fastmcp.FastMCP` instance.
+- Run the same `docendo.retrieval.tools` functions behind a `mcp.server.fastmcp.FastMCP` instance.
 - Listen on streamable HTTP for an authenticated external consumer.
 - Issue a single bearer token from a secret manager and rotate it on demand.
 
@@ -32,7 +32,7 @@ Elastic Agent Builder.
 to point Agent Builder at an external MCP server. The connector creation and
 bulk tool import are **UI-driven** today because the Kibana connector API is
 preview-only on Serverless and Elastic Stack 9.3+. When the server-side MCP
-landed in `bfsi-rbi` (see above), this guide would be updated with concrete
+landed in `docendo` (see above), this guide would be updated with concrete
 URLs and tokens.
 
 ## Public HTTPS host
@@ -43,7 +43,7 @@ compose file, a systemd unit, or a deployment runbook in this release.
 Local-only operation is the default; production deployment is operator-
 specific.
 
-## `bfsi-rbi update-corpus`
+## `docendo update-corpus`
 
 A "swap the database atomically" command does not exist. To roll out a new
 corpus:

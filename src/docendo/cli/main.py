@@ -1,4 +1,4 @@
-"""Typer CLI — the entry point installed as ``bfsi-rbi``."""
+"""Typer CLI — the entry point installed as ``docendo``."""
 
 from __future__ import annotations
 
@@ -8,17 +8,17 @@ from pathlib import Path
 
 import typer
 
-from bfsi_rbi.config import get_settings
-from bfsi_rbi.eval.dataset import load_dataset
-from bfsi_rbi.eval.report import generate_report
-from bfsi_rbi.eval.runner import run_eval
-from bfsi_rbi.exceptions import BFSIRBIError
-from bfsi_rbi.ingestion.pipeline import run_ingestion
-from bfsi_rbi.ingestion.rbi_scraper import discover_and_download
-from bfsi_rbi.logging import configure_logging, get_logger
+from docendo.config import get_settings
+from docendo.eval.dataset import load_dataset
+from docendo.eval.report import generate_report
+from docendo.eval.runner import run_eval
+from docendo.exceptions import BFSIRBIError
+from docendo.ingestion.pipeline import run_ingestion
+from docendo.ingestion.rbi_scraper import discover_and_download
+from docendo.logging import configure_logging, get_logger
 
 app = typer.Typer(
-    name="bfsi-rbi",
+    name="docendo",
     help="Grounded RAG agent for BFSI document intelligence (local SQLite).",
     no_args_is_help=True,
     add_completion=False,
@@ -122,8 +122,8 @@ def report(
     for line in results.read_text(encoding="utf-8").splitlines():
         if line.strip():
             raw.append(json.loads(line))
-    from bfsi_rbi.eval.hallucination import HallucinationResult
-    from bfsi_rbi.eval.runner import CaseResult
+    from docendo.eval.hallucination import HallucinationResult
+    from docendo.eval.runner import CaseResult
 
     cases: list[CaseResult] = []
     for r in raw:
@@ -216,14 +216,14 @@ def doctor(
     ),
 ) -> None:
     """Run local diagnostics: SQLite, vector extension, embedding/tokenizer reachability."""
-    from bfsi_rbi.cli.doctor import run_doctor
+    from docendo.cli.doctor import run_doctor
 
     rc = run_doctor(do_embedding=not no_embedding, do_tokenizer=not no_tokenizer)
     raise typer.Exit(code=rc)
 
 
 def main() -> None:
-    """Entry point for ``bfsi-rbi`` console script."""
+    """Entry point for ``docendo`` console script."""
     try:
         app()
     except BFSIRBIError as exc:

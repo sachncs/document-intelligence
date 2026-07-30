@@ -1,3 +1,3 @@
 # Ingestion
 
-::: bfsi_rbi.ingestion
+::: docendo.ingestion

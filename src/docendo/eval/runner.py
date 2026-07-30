@@ -13,12 +13,12 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
-from bfsi_rbi.agent import make_agent
-from bfsi_rbi.config import Settings, get_settings
-from bfsi_rbi.eval.dataset import EvalCase
-from bfsi_rbi.eval.hallucination import HallucinationResult, aevaluate_answer
-from bfsi_rbi.logging import get_logger
-from bfsi_rbi.models import RBIAnswer
+from docendo.agent import make_agent
+from docendo.config import Settings, get_settings
+from docendo.eval.dataset import EvalCase
+from docendo.eval.hallucination import HallucinationResult, aevaluate_answer
+from docendo.logging import get_logger
+from docendo.models import RBIAnswer
 
 logger = get_logger(__name__)
 

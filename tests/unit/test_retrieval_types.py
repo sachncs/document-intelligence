@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from bfsi_rbi.retrieval.types import (
+from docendo.retrieval.types import (
     CircularResponse,
     CompareInput,
     GetCircularInput,

@@ -11,8 +11,8 @@ from __future__ import annotations
 from functools import lru_cache
 from typing import Any
 
-from bfsi_rbi.config import Settings, get_settings
-from bfsi_rbi.exceptions import ConfigurationError
+from docendo.config import Settings, get_settings
+from docendo.exceptions import ConfigurationError
 
 
 @lru_cache(maxsize=1)

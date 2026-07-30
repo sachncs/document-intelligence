@@ -19,8 +19,8 @@ from typing import Any, Literal
 from litellm import completion
 from pydantic_evals.evaluators import Evaluator, EvaluatorContext
 
-from bfsi_rbi.config import Settings, get_settings
-from bfsi_rbi.logging import get_logger
+from docendo.config import Settings, get_settings
+from docendo.logging import get_logger
 
 logger = get_logger(__name__)
 

@@ -7,8 +7,8 @@ from unittest.mock import patch
 
 import pytest
 
-from bfsi_rbi.config import reset_settings_cache
-from bfsi_rbi.retrieval import embeddings
+from docendo.config import reset_settings_cache
+from docendo.retrieval import embeddings
 
 
 @pytest.fixture(autouse=True)

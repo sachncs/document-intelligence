@@ -5,7 +5,7 @@ from __future__ import annotations
 
 
 class BFSIRBIError(Exception):
-    """Root exception for all bfsi-rbi errors."""
+    """Root exception for all docendo errors."""
 
 
 class ConfigurationError(BFSIRBIError):

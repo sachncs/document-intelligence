@@ -1,6 +1,6 @@
 """Streamlit A/B chat UI for the RBI Policy Analyst.
 
-Run with: ``bfsi-rbi demo`` (defaults to http://localhost:8501).
+Run with: ``docendo demo`` (defaults to http://localhost:8501).
 """
 
 from __future__ import annotations
@@ -10,12 +10,12 @@ from typing import Any
 
 import streamlit as st
 
-from bfsi_rbi.agent import make_agent
-from bfsi_rbi.config import get_settings
-from bfsi_rbi.eval.dataset import load_dataset
-from bfsi_rbi.eval.hallucination import aevaluate_answer
-from bfsi_rbi.logging import get_logger
-from bfsi_rbi.models import RBIAnswer
+from docendo.agent import make_agent
+from docendo.config import get_settings
+from docendo.eval.dataset import load_dataset
+from docendo.eval.hallucination import aevaluate_answer
+from docendo.logging import get_logger
+from docendo.models import RBIAnswer
 
 logger = get_logger(__name__)
 

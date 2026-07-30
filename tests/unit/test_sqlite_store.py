@@ -19,9 +19,9 @@ from unittest.mock import patch
 
 import pytest
 
-from bfsi_rbi.config import reset_settings_cache
-from bfsi_rbi.retrieval.factory import reset_retriever_cache
-from bfsi_rbi.retrieval.sqlite_store import SQLiteStore, _fts_escape
+from docendo.config import reset_settings_cache
+from docendo.retrieval.factory import reset_retriever_cache
+from docendo.retrieval.sqlite_store import SQLiteStore, _fts_escape
 
 DIMS = 8  # small for tests
 
@@ -131,7 +131,7 @@ class TestRoundTrip:
         try:
             store.ensure_schema()
             with patch(
-                "bfsi_rbi.retrieval.embeddings.async_embed_texts",
+                "docendo.retrieval.embeddings.async_embed_texts",
                 side_effect=lambda texts, *, settings: _fake_embed(texts, settings=settings),
             ):
                 recs = [
@@ -148,7 +148,7 @@ class TestRoundTrip:
         try:
             store.ensure_schema()
             with patch(
-                "bfsi_rbi.retrieval.embeddings.async_embed_texts",
+                "docendo.retrieval.embeddings.async_embed_texts",
                 side_effect=lambda texts, *, settings: _fake_embed(texts, settings=settings),
             ):
                 recs = [
@@ -170,7 +170,7 @@ class TestSearch:
         store = SQLiteStore(tmp_db)
         store.ensure_schema()
         with patch(
-            "bfsi_rbi.retrieval.embeddings.async_embed_texts",
+            "docendo.retrieval.embeddings.async_embed_texts",
             side_effect=lambda texts, *, settings: _fake_embed(texts, settings=settings),
         ):
             records = [
@@ -213,7 +213,7 @@ class TestSearch:
             # The vector fake is hash-based and not semantically meaningful,
             # but lexical-only search should still rank A and B above C.
             with patch(
-                "bfsi_rbi.retrieval.embeddings.async_embed_texts",
+                "docendo.retrieval.embeddings.async_embed_texts",
                 side_effect=lambda texts, *, settings=None: [
                     [0.0] * DIMS for _ in texts
                 ],
@@ -230,7 +230,7 @@ class TestSearch:
         try:
             store.ensure_schema()
             with patch(
-                "bfsi_rbi.retrieval.embeddings.async_embed_texts",
+                "docendo.retrieval.embeddings.async_embed_texts",
                 side_effect=lambda texts, *, settings=None: _fake_embed(texts),
             ):
                 rec = {
@@ -288,8 +288,8 @@ class TestEmbeddingDimMismatch:
 
         import litellm  # type: ignore[import-untyped]
 
-        from bfsi_rbi.exceptions import EmbeddingProviderError
-        from bfsi_rbi.retrieval import embeddings
+        from docendo.exceptions import EmbeddingProviderError
+        from docendo.retrieval import embeddings
 
         wrong = [0.0] * (DIMS - 1)  # one short
 

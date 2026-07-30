@@ -1,4 +1,4 @@
-# Welcome to bfsi-rbi
+# Welcome to docendo
 
 A grounded RAG agent for BFSI (Banking, Financial Services, Insurance) document
 intelligence over RBI circulars, master directions, and policy documents.
@@ -14,7 +14,7 @@ Built on:
 
 Regulated BFSI environments require answers grounded in official documents
 (RBI circulars, master directions, FAQs). Generic LLMs hallucinate — for
-compliance use, this is unacceptable. bfsi-rbi:
+compliance use, this is unacceptable. docendo:
 
 1. Retrieves only from a curated corpus of RBI documents.
 2. Forces every claim to carry a citation (circular_id, excerpt, URL).

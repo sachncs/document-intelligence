@@ -1,4 +1,4 @@
-"""Tests for the ``bfsi-rbi doctor`` CLI command."""
+"""Tests for the ``docendo doctor`` CLI command."""
 
 from __future__ import annotations
 
@@ -6,8 +6,8 @@ import io
 
 import pytest
 
-from bfsi_rbi.cli.doctor import run_doctor
-from bfsi_rbi.config import reset_settings_cache
+from docendo.cli.doctor import run_doctor
+from docendo.config import reset_settings_cache
 
 
 @pytest.fixture(autouse=True)

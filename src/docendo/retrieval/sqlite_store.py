@@ -22,9 +22,9 @@ import threading
 from pathlib import Path
 from typing import Any
 
-from bfsi_rbi.config import Settings, get_settings
-from bfsi_rbi.logging import get_logger
-from bfsi_rbi.retrieval.types import (
+from docendo.config import Settings, get_settings
+from docendo.logging import get_logger
+from docendo.retrieval.types import (
     CircularResponse,
     CompareResponse,
     RecentItem,
@@ -321,7 +321,7 @@ class SQLiteStore:
     def _vector_search(self, query: str, k: int) -> list[tuple[Any, ...]]:
         import asyncio
 
-        from bfsi_rbi.retrieval.embeddings import async_embed_texts
+        from docendo.retrieval.embeddings import async_embed_texts
 
         async def _go() -> list[list[float]]:
             return await async_embed_texts([query], settings=self.settings)

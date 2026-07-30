@@ -1,7 +1,7 @@
 """End-to-end ingestion pipeline: scrape → extract → chunk → embed → store.
 
 The pipeline is backend-neutral except for one call: ``retriever.upsert_chunks``.
-Each chunk is embedded once via :func:`bfsi_rbi.retrieval.embeddings.async_embed_texts`,
+Each chunk is embedded once via :func:`docendo.retrieval.embeddings.async_embed_texts`,
 and the SQLite store receives pre-computed vectors (no SQL/embedding coupling).
 """
 
@@ -14,13 +14,13 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from bfsi_rbi.config import Settings, get_settings
-from bfsi_rbi.exceptions import StorageError
-from bfsi_rbi.ingestion.pdf import extract_pdf
-from bfsi_rbi.ingestion.rbi_scraper import discover_and_download
-from bfsi_rbi.logging import get_logger
-from bfsi_rbi.models import ExtractedDocument
-from bfsi_rbi.retrieval.tokenizer import chunk_text
+from docendo.config import Settings, get_settings
+from docendo.exceptions import StorageError
+from docendo.ingestion.pdf import extract_pdf
+from docendo.ingestion.rbi_scraper import discover_and_download
+from docendo.logging import get_logger
+from docendo.models import ExtractedDocument
+from docendo.retrieval.tokenizer import chunk_text
 
 logger = get_logger(__name__)
 
@@ -102,7 +102,7 @@ async def _process_one(
 
     Returns (inserted, skipped, error_message_or_none).
     """
-    from bfsi_rbi.retrieval.embeddings import async_embed_texts
+    from docendo.retrieval.embeddings import async_embed_texts
 
     content_hash = _content_hash(path)
     try:
@@ -155,7 +155,7 @@ def run_ingestion(
     settings: Settings | None = None,
 ) -> IngestionReport:
     """Run the full ingestion pipeline synchronously."""
-    from bfsi_rbi.retrieval.factory import get_retriever
+    from docendo.retrieval.factory import get_retriever
 
     settings = settings or get_settings()
     settings.require_for_run()

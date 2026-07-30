@@ -10,9 +10,9 @@ from unittest.mock import patch
 
 import pytest
 
-from bfsi_rbi.config import reset_settings_cache
-from bfsi_rbi.retrieval.factory import reset_retriever_cache
-from bfsi_rbi.retrieval.sqlite_store import SQLiteStore
+from docendo.config import reset_settings_cache
+from docendo.retrieval.factory import reset_retriever_cache
+from docendo.retrieval.sqlite_store import SQLiteStore
 
 DIMS = 4
 
@@ -100,7 +100,7 @@ class TestConcurrency:
     def test_async_concurrent_queries(self, tmp_db: Path) -> None:
         """10 concurrent hybrid_search calls complete without error."""
 
-        from bfsi_rbi.retrieval.types import SearchResponse
+        from docendo.retrieval.types import SearchResponse
 
         store = SQLiteStore(tmp_db)
         try:
@@ -109,7 +109,7 @@ class TestConcurrency:
                 store.upsert_chunks(f"C{i}", [_record(f"C{i}", f"kyc rule {i}", f"h{i}")])
 
             with patch(
-                "bfsi_rbi.retrieval.embeddings.async_embed_texts",
+                "docendo.retrieval.embeddings.async_embed_texts",
                 side_effect=lambda texts, *, settings=None: [_normalize([0.0] * DIMS) for _ in texts],
             ):
 

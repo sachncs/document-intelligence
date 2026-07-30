@@ -21,7 +21,7 @@ What actually happened.
 
 **Environment**
 - Python version:
-- bfsi-rbi version:
+- docendo version:
 - OS:
 - Elastic version:
 - MiniMax model:

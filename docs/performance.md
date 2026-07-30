@@ -1,6 +1,6 @@
 # Performance
 
-This page documents the performance budgets for `bfsi-rbi v0.2.0` and how
+This page documents the performance budgets for `docendo v0.2.0` and how
 to re-run the benchmark suite.
 
 ## Budgets
@@ -11,7 +11,7 @@ to re-run the benchmark suite.
 | `hybrid_search` p95 latency | < 100 ms | Warm cache, 200 chunks, mocked embedding. |
 | Re-ingest skip-check | < 10 s | Zero embedding calls for unchanged corpus. |
 | 40-case eval | < 4 min | At `bfsi_eval_concurrency=5`; dominated by chat-model latency. |
-| `bfsi-rbi doctor --no-embedding` | < 3 s | Offline. |
+| `docendo doctor --no-embedding` | < 3 s | Offline. |
 
 ## How to re-run
 

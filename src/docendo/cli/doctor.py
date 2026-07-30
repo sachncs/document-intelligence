@@ -1,4 +1,4 @@
-"""``bfsi-rbi doctor`` — local diagnostics for the SQLite + Qwen3 stack."""
+"""``docendo doctor`` — local diagnostics for the SQLite + Qwen3 stack."""
 
 from __future__ import annotations
 
@@ -8,8 +8,8 @@ import sys
 import time
 from typing import Any
 
-from bfsi_rbi.config import Settings, get_settings
-from bfsi_rbi.logging import get_logger
+from docendo.config import Settings, get_settings
+from docendo.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -54,7 +54,7 @@ async def _check_embeddings(settings: Settings) -> tuple[bool, str]:
     if not settings.bfsi_embedding_api_key or not settings.bfsi_embedding_api_base:
         return False, "FAIL: BFSI_EMBEDDING_API_KEY/BFSI_EMBEDDING_API_BASE not set"
     try:
-        from bfsi_rbi.retrieval.embeddings import async_embed_texts
+        from docendo.retrieval.embeddings import async_embed_texts
 
         start = time.perf_counter()
         vecs = await async_embed_texts(["ping"], settings=settings)
@@ -68,7 +68,7 @@ async def _check_embeddings(settings: Settings) -> tuple[bool, str]:
 
 def _check_tokenizer(settings: Settings) -> tuple[bool, str]:
     try:
-        from bfsi_rbi.retrieval import tokenizer
+        from docendo.retrieval import tokenizer
 
         start = time.perf_counter()
         ids = tokenizer.encode("hello world", settings=settings)

@@ -12,7 +12,7 @@ from typing import Any, Literal
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from bfsi_rbi.exceptions import ConfigurationError
+from docendo.exceptions import ConfigurationError
 
 
 class Settings(BaseSettings):

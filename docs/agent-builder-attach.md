@@ -1,6 +1,6 @@
-# Attaching `bfsi-rbi` to Elastic Agent Builder
+# Attaching `docendo` to Elastic Agent Builder
 
-> This guide is a placeholder. As of `v0.2.0` `bfsi-rbi` does **not** expose
+> This guide is a placeholder. As of `v0.2.0` `docendo` does **not** expose
 > an authenticated MCP server. The agent uses direct Python tools in-process,
 > and Elastic Agent Builder external-MCP support is in preview on Serverless and
 > Elastic Stack 9.3+. When the MCP server ships, this page will be updated with
@@ -14,12 +14,12 @@ Elastic Agent Builder can call **external** MCP tools, but doing so requires:
 2. A bearer token or API key the connector can attach to every request.
 3. A Kibana MCP connector pointing at that server.
 
-`bfsi-rbi v0.2.0` has none of those — the SQLite store runs in the same
+`docendo v0.2.0` has none of those — the SQLite store runs in the same
 process as the agent, behind four direct tool functions.
 
 ## When this guide becomes actionable
 
-After `bfsi-rbi` ships:
+After `docendo` ships:
 
 - A `serve-mcp` CLI command that exposes the four retrieval tools over
   streamable HTTP.
@@ -27,7 +27,7 @@ After `bfsi-rbi` ships:
 - A documented deployment topology (Dockerfile, systemd unit, or similar)
   with persistent volume for the SQLite file.
 
-The `bfsi-rbi attach-ab` command will then:
+The `docendo attach-ab` command will then:
 
 - `initialize` against the public MCP URL.
 - Send `tools/list` and assert the four `rbi.*` tools are present.

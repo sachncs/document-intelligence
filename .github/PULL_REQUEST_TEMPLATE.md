@@ -18,6 +18,6 @@ Fixes #<n>
 ## Checklist
 
 - [ ] `ruff check src tests` passes
-- [ ] `mypy src/bfsi_rbi` passes
+- [ ] `mypy src/docendo` passes
 - [ ] `pytest tests/unit` passes
 - [ ] Updated docs / README if user-facing

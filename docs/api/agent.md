@@ -1,3 +1,3 @@
 # Agent
 
-::: bfsi_rbi.agent
+::: docendo.agent

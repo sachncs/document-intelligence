@@ -2,7 +2,7 @@
 
 ## Secrets
 
-`bfsi-rbi` reads four secrets at runtime:
+`docendo` reads four secrets at runtime:
 
 - `MINIMAX_API_KEY` — the chat model API key.
 - `BFSI_EMBEDDING_API_KEY` — the embedding endpoint API key.
@@ -15,14 +15,14 @@ Always:
 - Keep secrets out of source control. `.env` is git-ignored by default.
 - Use `chmod 600 .env` on shared hosts.
 - Prefer a secret manager (1Password, AWS Secrets Manager, Vault) for
-  production deployments. `bfsi-rbi` reads from the process environment, so
+  production deployments. `docendo` reads from the process environment, so
   any loader that injects env vars works.
 
 ## Network egress
 
-`bfsi-rbi` makes outbound requests to:
+`docendo` makes outbound requests to:
 
-- The RBI website (HTTPS) for PDF download during `bfsi-rbi fetch`.
+- The RBI website (HTTPS) for PDF download during `docendo fetch`.
 - The embedding endpoint (HTTPS) for chunk encoding.
 - The chat model endpoint (HTTPS) for LLM calls.
 - The vision endpoint (HTTPS) for scanned-PDF fallback extraction.
@@ -43,7 +43,7 @@ User queries are passed to the FTS5 `MATCH` operator wrapped in double
 quotes, with embedded double quotes doubled. This prevents FTS5 syntax
 errors from operator injection (`AND`, `OR`, `NOT`) and limits the
 searchable surface to literal tokens. See
-`src/bfsi_rbi/retrieval/sqlite_store.py::SQLiteStore._fts_escape`.
+`src/docendo/retrieval/sqlite_store.py::SQLiteStore._fts_escape`.
 
 ## Embedding cache
 

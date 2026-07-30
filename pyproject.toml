@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "bfsi-rbi"
+name = "docendo"
 version = "0.2.0"
 description = "Grounded RAG agent for BFSI document intelligence over RBI circulars (local-first SQLite + Qwen3-Embedding-8B)"
 readme = "README.md"
@@ -70,20 +70,20 @@ dev = [
 ]
 
 [project.scripts]
-bfsi-rbi = "bfsi_rbi.cli.main:app"
+docendo = "docendo.cli.main:app"
 
 [project.urls]
-Homepage = "https://github.com/sachin/bfsi-rbi"
-Documentation = "https://sachin.github.io/bfsi-rbi"
-Repository = "https://github.com/sachin/bfsi-rbi"
-Issues = "https://github.com/sachin/bfsi-rbi/issues"
+Homepage = "https://github.com/sachin/docendo"
+Documentation = "https://sachin.github.io/docendo"
+Repository = "https://github.com/sachin/docendo"
+Issues = "https://github.com/sachin/docendo/issues"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/bfsi_rbi"]
+packages = ["src/docendo"]
 
 [tool.hatch.build.targets.sdist]
 include = [
-    "src/bfsi_rbi",
+    "src/docendo",
     "README.md",
     "LICENSE",
     "CHANGELOG.md",
@@ -105,7 +105,7 @@ ignore = ["E501", "B008"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["B011"]
-"src/bfsi_rbi/ui/*" = ["E402"]
+"src/docendo/ui/*" = ["E402"]
 
 [tool.ruff.format]
 quote-style = "double"
@@ -150,7 +150,7 @@ markers = [
 ]
 
 [tool.coverage.run]
-source = ["src/bfsi_rbi"]
+source = ["src/docendo"]
 omit = ["*/tests/*", "*/__main__.py"]
 
 [tool.coverage.report]

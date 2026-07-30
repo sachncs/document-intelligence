@@ -4,7 +4,7 @@ from __future__ import annotations
 
 
 def test_importable() -> None:
-    from bfsi_rbi.eval.hallucination import (  # noqa: F401
+    from docendo.eval.hallucination import (  # noqa: F401
         AtomicClaim,
         AtomicClaimHallucination,
         HallucinationResult,

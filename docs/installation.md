@@ -48,18 +48,18 @@ BFSI_LOG_LEVEL=INFO
 BFSI_HTTP_TIMEOUT=30
 ```
 
-The full list of knobs lives in `src/bfsi_rbi/config.py::Settings`.
+The full list of knobs lives in `src/docendo/config.py::Settings`.
 
 ## Verify the install
 
 ```bash
-bfsi-rbi doctor
+docendo doctor
 ```
 
 For offline CI:
 
 ```bash
-bfsi-rbi doctor --no-embedding --no-tokenizer
+docendo doctor --no-embedding --no-tokenizer
 ```
 
 ## Troubleshooting
@@ -68,4 +68,4 @@ bfsi-rbi doctor --no-embedding --no-tokenizer
   prebuilt wheel. Alpine / musl is unsupported; rebuild a Python with
   glibc.
 - `gigatoken` model downloads on first use — pre-warm by running
-  `bfsi-rbi doctor` with the embedding endpoint reachable.
+  `docendo doctor` with the embedding endpoint reachable.

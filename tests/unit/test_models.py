@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from bfsi_rbi.models import Citation, ExtractedDocument, ExtractedPage, RBIAnswer
+from docendo.models import Citation, ExtractedDocument, ExtractedPage, RBIAnswer
 
 
 class TestCitation:

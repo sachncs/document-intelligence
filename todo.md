@@ -13,7 +13,7 @@
 ### 0.1 Package rename — 1 pt
 
 - [ ] **`pyproject.toml`**: `name = "docendo"`, `version = "0.3.0a1"`, `[project.scripts] docendo = "docendo.cli.main:app"`, `[tool.hatch.build.targets.wheel] packages = ["src/docendo"]`, `[project.urls] Homepage/Documentation/Repository/Issues = https://github.com/sachin/docendo/...`
-- [ ] **Create `src/docendo/`** alongside; `git rm` the entire `src/bfsi_rbi/` directory
+- [ ] **Create `src/docendo/`** alongside; `git rm` the entire `src/docendo/` directory
 - [ ] **Update `.github/workflows/ci.yml`** env vars and command paths to `docendo`
 - [ ] **Update `Makefile`** default targets to invoke `docendo`
 - [ ] **No backward-compat shim** (alpha release; clean break)
@@ -154,7 +154,7 @@
 
 ### 1.8 CLI subcommand renames — 1 pt
 
-- [ ] `bfsi-rbi fetch` → `docendo fetch`; `ingest` → `docendo ingest`; `eval` → `docendo eval`; `report` → `docendo report`; `demo` → `docendo demo`; `doctor` → `docendo checkup`; `dataset-info` → `docendo cases`
+- [ ] `docendo fetch` → `docendo fetch`; `ingest` → `docendo ingest`; `eval` → `docendo eval`; `report` → `docendo report`; `demo` → `docendo demo`; `doctor` → `docendo checkup`; `dataset-info` → `docendo cases`
 - [ ] **Update Makefile** targets to match
 
 **Test:** `tests/integration/test_cli_smoke.py::test_subcommand_names` — `docendo --help` lists every subcommand.

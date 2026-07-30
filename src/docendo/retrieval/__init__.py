@@ -1,6 +1,6 @@
 """Retrieval subsystem: SQLite + FTS5 + sqlite-vector backend, gigatoken tokenizer, tools, factory."""
 
-from bfsi_rbi.retrieval.types import (
+from docendo.retrieval.types import (
     CircularResponse,
     CompareInput,
     CompareResponse,

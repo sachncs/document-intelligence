@@ -20,10 +20,10 @@ import pypdfium2 as pdfium  # type: ignore[import-untyped]
 from litellm import completion
 from pydantic import HttpUrl
 
-from bfsi_rbi.config import Settings, get_settings
-from bfsi_rbi.exceptions import PDFExtractionError, VisionAPIError
-from bfsi_rbi.logging import get_logger
-from bfsi_rbi.models import ExtractedDocument, ExtractedPage
+from docendo.config import Settings, get_settings
+from docendo.exceptions import PDFExtractionError, VisionAPIError
+from docendo.logging import get_logger
+from docendo.models import ExtractedDocument, ExtractedPage
 
 logger = get_logger(__name__)
 

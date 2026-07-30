@@ -17,9 +17,9 @@ from urllib.parse import urljoin
 import httpx
 from bs4 import BeautifulSoup
 
-from bfsi_rbi.config import Settings, get_settings
-from bfsi_rbi.exceptions import ScrapingError
-from bfsi_rbi.logging import get_logger
+from docendo.config import Settings, get_settings
+from docendo.exceptions import ScrapingError
+from docendo.logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -60,7 +60,7 @@ def rbi_url(path: str) -> str:
 def _http_get(url: str, settings: Settings) -> str:
     """Fetch a URL with retry, return text content."""
     headers = {
-        "User-Agent": "bfsi-rbi/0.1 (+research; not for production compliance)",
+        "User-Agent": "docendo/0.1 (+research; not for production compliance)",
         "Accept": "text/html,application/pdf",
     }
     try:
@@ -167,7 +167,7 @@ def download_pdf(
             httpx.Client(
                 timeout=settings.bfsi_http_timeout,
                 follow_redirects=True,
-                headers={"User-Agent": "bfsi-rbi/0.1"},
+                headers={"User-Agent": "docendo/0.1"},
             ) as client,
             client.stream("GET", doc.pdf_url) as r,
         ):

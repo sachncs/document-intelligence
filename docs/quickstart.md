@@ -43,7 +43,7 @@ cp .env.example .env
 ## 3. Sanity check
 
 ```bash
-bfsi-rbi doctor
+docendo doctor
 # All checks should pass: paths, minimax_credentials, tokenizer_match,
 # sqlite_opens, vector_extension, embeddings, tokenizer_load.
 ```
@@ -51,31 +51,31 @@ bfsi-rbi doctor
 For offline CI runs:
 
 ```bash
-bfsi-rbi doctor --no-embedding --no-tokenizer
+docendo doctor --no-embedding --no-tokenizer
 ```
 
 ## 4. Run the pipeline
 
 ```bash
 # Scrape RBI and download PDFs into data/raw/.
-bfsi-rbi fetch
+docendo fetch
 
 # Extract, chunk, embed, and store in SQLite (data/processed/rbi-circulars.sqlite3).
-bfsi-rbi ingest
+docendo ingest
 
 # Run 5 eval cases and write reports/results.jsonl.
-bfsi-rbi eval --limit 5
+docendo eval --limit 5
 
 # Generate reports/eval_report.md from results.jsonl.
-bfsi-rbi report
+docendo report
 
 # Launch the Streamlit A/B demo on http://localhost:8501.
-bfsi-rbi demo
+docendo demo
 ```
 
 ## 5. Iterate
 
-Re-running `bfsi-rbi ingest` skips any PDF whose `content_hash` is
+Re-running `docendo ingest` skips any PDF whose `content_hash` is
 unchanged, so it makes zero embedding calls on an unchanged corpus. To
 force re-embedding, delete the SQLite database (`rm
 data/processed/rbi-circulars.sqlite3`) or remove specific rows by hand.
@@ -85,7 +85,7 @@ data/processed/rbi-circulars.sqlite3`) or remove specific rows by hand.
 - `ConfigurationError: tokenizer model does not match embedding model` —
   set `BFSI_TOKENIZER_MODEL` to the same value as `BFSI_EMBEDDING_MODEL`.
 - `Embedding dim mismatch` — `BFSI_EMBEDDING_DIMS` differs from the
-  endpoint's actual dimension. Run `bfsi-rbi doctor` with embedding enabled
+  endpoint's actual dimension. Run `docendo doctor` with embedding enabled
   to observe the live dimension, then update `.env`.
 - Slow ingestion — embedding API latency dominates. Run with a small
   `BFSI_FETCH_MAX_DOCS` to size the corpus.

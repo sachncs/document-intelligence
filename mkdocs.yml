@@ -1,8 +1,8 @@
-site_name: bfsi-rbi
+site_name: docendo
 site_description: Grounded RAG agent for BFSI document intelligence over RBI circulars
 site_author: sachin
-repo_url: https://github.com/sachin/bfsi-rbi
-repo_name: sachin/bfsi-rbi
+repo_url: https://github.com/sachin/docendo
+repo_name: sachin/docendo
 edit_uri: ""
 
 theme:

@@ -15,9 +15,9 @@ from pydantic_ai import Agent
 from pydantic_ai.settings import ModelSettings
 from pydantic_ai_litellm import LiteLLMModel  # type: ignore[import-untyped]
 
-from bfsi_rbi.config import Settings, get_settings
-from bfsi_rbi.logging import get_logger
-from bfsi_rbi.models import RBIAnswer
+from docendo.config import Settings, get_settings
+from docendo.logging import get_logger
+from docendo.models import RBIAnswer
 
 if TYPE_CHECKING:
     pass
@@ -66,7 +66,7 @@ cited excerpts.
 def build_litellm_model(settings: Settings) -> LiteLLMModel:
     """Construct the LiteLLM-backed Pydantic AI model."""
     if not settings.minimax_api_key:
-        from bfsi_rbi.exceptions import ConfigurationError
+        from docendo.exceptions import ConfigurationError
 
         raise ConfigurationError("MINIMAX_API_KEY is not set.")
 
@@ -85,7 +85,7 @@ def _cached_litellm_model() -> LiteLLMModel:
 
 def _tool_functions() -> list[Any]:
     """Lazily import and return the four retrieval tool functions."""
-    from bfsi_rbi.retrieval.tools import (
+    from docendo.retrieval.tools import (
         compare_circulars,
         get_circular,
         hybrid_search,

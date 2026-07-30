@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Local-first SQLite retrieval backend (sqliteai-vector + FTS5 + gigatoken).
 - Four direct Pydantic AI tool functions: `hybrid_search`, `get_circular`,
   `list_recent`, `compare_circulars`.
-- `bfsi-rbi doctor` CLI for local diagnostics (SQLite opens, vector extension,
+- `docendo doctor` CLI for local diagnostics (SQLite opens, vector extension,
   embedding endpoint, tokenizer load, tokenizer/embedding match).
 - Process-wide singletons for the retriever store and the LiteLLM model.
 - Content-hash-based re-ingestion skip (zero embedding calls on unchanged PDFs).
@@ -28,7 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the pipeline skips unchanged PDFs.
 
 ### Removed
-- All Elasticsearch code paths: `src/bfsi_rbi/es/`, `src/bfsi_rbi/agent_builder/`,
+- All Elasticsearch code paths: `src/docendo/es/`, `src/docendo/agent_builder/`,
   `scripts/setup_inference.py`.
 - Agent Builder CLI commands: `setup-inference`, `deploy-tools`, `deploy-agent`,
   `smoke-mcp`.
