@@ -27,9 +27,9 @@ from docendo.models import Page, Record
 
 logger = get_logger(__name__)
 
-_TEXT_PAGE_THRESHOLD: Final[int] = 50
-_VISION_DPI: Final[int] = 200
-_VISION_PROMPT: Final[str] = (
+TEXT_PAGE_THRESHOLD: Final[int] = 50
+VISION_DPI: Final[int] = 200
+VISION_PROMPT: Final[str] = (
     "Extract all text from this document page, preserving structure "
     "(headings, paragraphs, list items, table cells). "
     "Return only the extracted text — no commentary, no markdown fencing."

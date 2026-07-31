@@ -11,7 +11,7 @@ import sys
 from typing import Final
 
 CONFIGURED: bool = False
-_LOGGER_NAME: Final[str] = "docendo"
+LOGGER_NAME: Final[str] = "docendo"
 
 
 def configure_logging(level: str = "INFO") -> None:
