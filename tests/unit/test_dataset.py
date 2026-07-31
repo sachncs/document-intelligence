@@ -10,7 +10,7 @@ import pytest
 from docendo.eval.cases import Case, load, save
 
 
-def sample_cases() -> list[Case]:
+def _sample_cases() -> list[Case]:
     return [
         Case(
             name="kyc_threshold",
@@ -62,7 +62,7 @@ class TestLoadCases:
 
     def test_save_and_reload_yaml(self, tmp_path: Path) -> None:
         path = tmp_path / "ds.yaml"
-        save(sample_cases(), path)
+        save(_sample_cases(), path)
         cases = load(path)
         assert len(cases) == 2
         assert cases[1].name == "npa_steps"

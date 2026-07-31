@@ -32,23 +32,23 @@ from docendo.retrieval.store import Store, fts_escape, parse_blob
 DIMS = 8  # small for tests
 
 
-def normalize(v: list[float]) -> list[float]:
+def _normalize(v: list[float]) -> list[float]:
     n = math.sqrt(sum(x * x for x in v)) or 1.0
     return [x / n for x in v]
 
 
-def fake_embed(texts: list[str], *, settings=None) -> list[list[float]]:
+def _fake_embed(texts: list[str], *, settings=None) -> list[list[float]]:
     """Deterministic fake embedding: hash -> unit vector."""
     out = []
     for t in texts:
         h = abs(hash(t))
         v = [(h >> (i * 8)) & 0xFF for i in range(DIMS)]
-        out.append(normalize([(x - 127.5) / 127.5 for x in v]))
+        out.append(_normalize([(x - 127.5) / 127.5 for x in v]))
     return out
 
 
 @pytest.fixture
-def tmp_db(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+def _tmp_db(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     db = tmp_path / "docendo.sqlite3"
     monkeypatch.setenv("STORE_PATH", str(db))
     monkeypatch.setenv("VECTOR_DIMS", str(DIMS))
@@ -85,7 +85,7 @@ def _record_with_embedding(
     circ: str, text: str, chunk_index: int, content_hash: str = "h1"
 ) -> ChunkRecord:
     rec = _record(circ, text, chunk_index, content_hash)
-    rec.embedding = fake_embed([text])[0]
+    rec.embedding = _fake_embed([text])[0]
     return rec
 
 
@@ -114,11 +114,11 @@ class TestParseBlob:
 
 
 class TestSchema:
-    def test_ensure_schema_creates_objects(self, tmp_db: Path) -> None:
-        store = Store(tmp_db)
+    def test_ensure_schema_creates_objects(self, _tmp_db: Path) -> None:
+        store = Store(_tmp_db)
         try:
             store.ensure_schema()
-            conn = sqlite3.connect(str(tmp_db))
+            conn = sqlite3.connect(str(_tmp_db))
             try:
                 cur = conn.execute(
                     "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
@@ -154,14 +154,14 @@ class TestSchema:
 
 
 class TestRoundTrip:
-    def test_upsert_and_count(self, tmp_db: Path) -> None:
-        store = Store(tmp_db)
+    def test_upsert_and_count(self, _tmp_db: Path) -> None:
+        store = Store(_tmp_db)
         try:
             store.ensure_schema()
             with patch.object(
                 embedder,
                 "aembed",
-                side_effect=lambda texts, *, settings=None: fake_embed(texts),
+                side_effect=lambda texts, *, settings=None: _fake_embed(texts),
             ):
                 store.upsert_chunks(
                     "A",
@@ -174,14 +174,14 @@ class TestRoundTrip:
         finally:
             store.close()
 
-    def test_idempotent_reingest_via_content_hash(self, tmp_db: Path) -> None:
-        store = Store(tmp_db)
+    def test_idempotent_reingest_via_content_hash(self, _tmp_db: Path) -> None:
+        store = Store(_tmp_db)
         try:
             store.ensure_schema()
             with patch.object(
                 embedder,
                 "aembed",
-                side_effect=lambda texts, *, settings=None: fake_embed(texts),
+                side_effect=lambda texts, *, settings=None: _fake_embed(texts),
             ):
                 store.upsert_chunks(
                     "A",
@@ -205,13 +205,13 @@ class TestRoundTrip:
 
 
 class TestSearch:
-    def _make_records(self, tmp_db: Path) -> Store:
-        store = Store(tmp_db)
+    def _make_records(self, _tmp_db: Path) -> Store:
+        store = Store(_tmp_db)
         store.ensure_schema()
         with patch.object(
             embedder,
             "aembed",
-            side_effect=lambda texts, *, settings=None: fake_embed(texts),
+            side_effect=lambda texts, *, settings=None: _fake_embed(texts),
         ):
             for circ, text in (
                 ("A", "kyc threshold is fifty thousand"),
@@ -221,8 +221,8 @@ class TestSearch:
                 store.upsert_chunks(circ, [_record_with_embedding(circ, text, 0)])
         return store
 
-    def test_lexical_finds_kyc(self, tmp_db: Path) -> None:
-        store = self._make_records(tmp_db)
+    def test_lexical_finds_kyc(self, _tmp_db: Path) -> None:
+        store = self._make_records(_tmp_db)
         try:
             with patch.object(
                 embedder,
@@ -238,14 +238,14 @@ class TestSearch:
         finally:
             store.close()
 
-    def test_fts_escaping_and_or_not(self, tmp_db: Path) -> None:
-        store = Store(tmp_db)
+    def test_fts_escaping_and_or_not(self, _tmp_db: Path) -> None:
+        store = Store(_tmp_db)
         try:
             store.ensure_schema()
             with patch.object(
                 embedder,
                 "aembed",
-                side_effect=lambda texts, *, settings=None: fake_embed(texts),
+                side_effect=lambda texts, *, settings=None: _fake_embed(texts),
             ):
                 store.upsert_chunks(
                     "A", [_record_with_embedding("A", "kyc rules", 0)]
@@ -257,8 +257,8 @@ class TestSearch:
         finally:
             store.close()
 
-    def test_fetch(self, tmp_db: Path) -> None:
-        store = self._make_records(tmp_db)
+    def test_fetch(self, _tmp_db: Path) -> None:
+        store = self._make_records(_tmp_db)
         try:
             doc = store.fetch("A")
             assert doc is not None
@@ -268,8 +268,8 @@ class TestSearch:
         finally:
             store.close()
 
-    def test_list_recent(self, tmp_db: Path) -> None:
-        store = self._make_records(tmp_db)
+    def test_list_recent(self, _tmp_db: Path) -> None:
+        store = self._make_records(_tmp_db)
         try:
             items = store.list_recent("2023-01-01")
             assert {it.circular_id for it in items} == {"A", "B", "C"}
@@ -278,8 +278,8 @@ class TestSearch:
         finally:
             store.close()
 
-    def test_compare(self, tmp_db: Path) -> None:
-        store = self._make_records(tmp_db)
+    def test_compare(self, _tmp_db: Path) -> None:
+        store = self._make_records(_tmp_db)
         try:
             comp = store.compare("A", "B")
             assert comp is not None
@@ -289,14 +289,14 @@ class TestSearch:
         finally:
             store.close()
 
-    def test_rrf_k_setting_propagates(self, tmp_db: Path) -> None:
+    def test_rrf_k_setting_propagates(self, _tmp_db: Path) -> None:
         """Different RRF k values should not change the relative ranking for known vectors."""
-        store = self._make_records(tmp_db)
+        store = self._make_records(_tmp_db)
         try:
             with patch.object(
                 embedder,
                 "aembed",
-                side_effect=lambda texts, *, settings=None: fake_embed(texts),
+                side_effect=lambda texts, *, settings=None: _fake_embed(texts),
             ):
                 resp_default = store.hybrid_search("kyc", limit=3)
                 store.settings.rrf_k = 1
@@ -312,12 +312,12 @@ class TestSearch:
 class TestColumnOrderIndependence:
     """Adding a column to the SELECT must not break the row-reading code."""
 
-    def test_row_factory_returns_named_columns(self, tmp_db: Path) -> None:
-        store = Store(tmp_db)
+    def test_row_factory_returns_named_columns(self, _tmp_db: Path) -> None:
+        store = Store(_tmp_db)
         try:
             store.ensure_schema()
             with patch.object(
-                aembed, "__call__", side_effect=lambda texts, *, settings=None: fake_embed(texts)
+                aembed, "__call__", side_effect=lambda texts, *, settings=None: _fake_embed(texts)
             ):
                 store.upsert_chunks(
                     "A", [_record_with_embedding("A", "kyc threshold", 0)]
@@ -380,8 +380,8 @@ class TestEmbeddingDimMismatch:
 
 
 class TestConcurrency:
-    def test_concurrent_readers_one_writer(self, tmp_db: Path) -> None:
-        store = Store(tmp_db)
+    def test_concurrent_readers_one_writer(self, _tmp_db: Path) -> None:
+        store = Store(_tmp_db)
         try:
             store.ensure_schema()
 
@@ -409,7 +409,7 @@ class TestConcurrency:
 class TestChunkerWiring:
     """Verify that the chunker module produces chunks we can embed."""
 
-    def test_chunker_returns_strings(self, tmp_db: Path) -> None:
+    def test_chunker_returns_strings(self, _tmp_db: Path) -> None:
         # Don't even need the store; just sanity-check chunker is wired.
         from docendo.retrieval import chunker
 

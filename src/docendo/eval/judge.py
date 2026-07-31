@@ -77,7 +77,7 @@ class Verdict:
         }
 
 
-_CLAIM_EXTRACTION_PROMPT = """\
+CLAIM_EXTRACTION_PROMPT = """\
 You are an evaluation assistant. Given an answer, decompose it into a JSON
 array of atomic claims. Each claim must be a single, self-contained, falsifiable
 factual statement. Exclude opinions, hedges, and meta-statements.
@@ -89,7 +89,7 @@ Return ONLY a JSON array of strings. Example:
 ["The capital of France is Paris.", "France is in Europe."]
 """
 
-_CLAIM_JUDGE_PROMPT = """\
+CLAIM_JUDGE_PROMPT = """\
 You are an evaluation judge. Given an atomic claim and a gold reference
 answer, label the claim with one of three verdicts:
 
@@ -120,7 +120,7 @@ def extract(answer: str, settings: Settings) -> list[str] | None:
         messages=[
             {
                 "role": "user",
-                "content": _CLAIM_EXTRACTION_PROMPT.format(answer=answer),
+                "content": CLAIM_EXTRACTION_PROMPT.format(answer=answer),
             }
         ],
         max_tokens=2000,
@@ -153,7 +153,7 @@ def judge_claim(claim: str, gold: str, settings: Settings) -> tuple[ClaimVerdict
         messages=[
             {
                 "role": "user",
-                "content": _CLAIM_JUDGE_PROMPT.format(claim=claim, gold=gold),
+                "content": CLAIM_JUDGE_PROMPT.format(claim=claim, gold=gold),
             }
         ],
         max_tokens=200,

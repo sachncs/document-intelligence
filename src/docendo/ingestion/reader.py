@@ -4,7 +4,7 @@ Strategy:
 1. Try ``pypdf`` for cheap text extraction.
 2. If a page yields < 50 chars (likely scanned), render it via pypdfium2
    and call the configured chat model vision API via LiteLLM.
-3. Cache results by ``(pdf_sha256, page_number)`` to avoid double-billing.
+3. Cache results by ``(pdfsha256_file, page_number)`` to avoid double-billing.
 """
 
 from __future__ import annotations

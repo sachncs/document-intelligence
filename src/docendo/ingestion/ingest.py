@@ -94,7 +94,7 @@ def build_records(
                 else "text"
             ),
             content_hash=content_hash,
-            embedding=[],  # filled by _process_one after embedding
+            embedding=[],  # filled by process_one after embedding
         )
         for idx, text in enumerate(texts)
     ]

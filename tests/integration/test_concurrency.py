@@ -48,7 +48,7 @@ def _record(circ: str, text: str, hash_: str) -> ChunkRecord:
 
 
 @pytest.fixture
-def tmp_db(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+def _tmp_db(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     db = tmp_path / "docendo.sqlite3"
     monkeypatch.setenv("STORE_PATH", str(db))
     monkeypatch.setenv("VECTOR_DIMS", str(DIMS))
@@ -64,8 +64,8 @@ def tmp_db(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 
 
 class TestConcurrency:
-    def test_concurrent_readers_one_writer(self, tmp_db: Path) -> None:
-        store = Store(tmp_db)
+    def test_concurrent_readers_one_writer(self, _tmp_db: Path) -> None:
+        store = Store(_tmp_db)
         try:
             store.ensure_schema()
             for i in range(5):
@@ -99,14 +99,14 @@ class TestConcurrency:
         finally:
             store.close()
 
-    def test_async_concurrent_queries(self, tmp_db: Path) -> None:
+    def test_async_concurrent_queries(self, _tmp_db: Path) -> None:
         """10 concurrent hybrid_search calls complete without error."""
         from unittest.mock import patch
 
         from docendo.retrieval import embedder
         from docendo.retrieval.types import Results
 
-        store = Store(tmp_db)
+        store = Store(_tmp_db)
         try:
             store.ensure_schema()
             for i in range(5):

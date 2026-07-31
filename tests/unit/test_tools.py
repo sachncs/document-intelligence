@@ -42,7 +42,7 @@ def _record(circ: str, text: str, embedding: list[float]) -> ChunkRecord:
 
 
 @pytest.fixture
-def tmp_db(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+def _tmp_db(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     db = tmp_path / "docendo.sqlite3"
     monkeypatch.setenv("STORE_PATH", str(db))
     monkeypatch.setenv("VECTOR_DIMS", str(DIMS))
@@ -58,10 +58,10 @@ def tmp_db(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
 
 
 class TestSearchTool:
-    def test_search_returns_ranked_hits(self, tmp_db: Path) -> None:
+    def test_search_returns_ranked_hits(self, _tmp_db: Path) -> None:
         from docendo.retrieval.tools import search
 
-        store = Store(tmp_db)
+        store = Store(_tmp_db)
         try:
             store.ensure_schema()
             vec_a = [0.1] * DIMS
@@ -101,10 +101,10 @@ class TestSearchTool:
 
 
 class TestFetchTool:
-    def test_fetch_found(self, tmp_db: Path) -> None:
+    def test_fetch_found(self, _tmp_db: Path) -> None:
         from docendo.retrieval.tools import fetch
 
-        store = Store(tmp_db)
+        store = Store(_tmp_db)
         try:
             store.ensure_schema()
             vec_a = [0.1] * DIMS
@@ -117,10 +117,10 @@ class TestFetchTool:
         finally:
             store.close()
 
-    def test_fetch_not_found_returns_marker(self, tmp_db: Path) -> None:
+    def test_fetch_not_found_returns_marker(self, _tmp_db: Path) -> None:
         from docendo.retrieval.tools import fetch
 
-        store = Store(tmp_db)
+        store = Store(_tmp_db)
         try:
             store.ensure_schema()
             result = fetch("nonexistent")
@@ -131,10 +131,10 @@ class TestFetchTool:
 
 
 class TestRecentTool:
-    def test_recent_returns_listed_circulars(self, tmp_db: Path) -> None:
+    def test_recent_returns_listed_circulars(self, _tmp_db: Path) -> None:
         from docendo.retrieval.tools import recent
 
-        store = Store(tmp_db)
+        store = Store(_tmp_db)
         try:
             store.ensure_schema()
             store.upsert_chunks(
@@ -147,10 +147,10 @@ class TestRecentTool:
 
 
 class TestCompareTool:
-    def test_compare_found(self, tmp_db: Path) -> None:
+    def test_compare_found(self, _tmp_db: Path) -> None:
         from docendo.retrieval.tools import compare
 
-        store = Store(tmp_db)
+        store = Store(_tmp_db)
         try:
             store.ensure_schema()
             store.upsert_chunks(
@@ -166,10 +166,10 @@ class TestCompareTool:
         finally:
             store.close()
 
-    def test_compare_not_found_returns_marker(self, tmp_db: Path) -> None:
+    def test_compare_not_found_returns_marker(self, _tmp_db: Path) -> None:
         from docendo.retrieval.tools import compare
 
-        store = Store(tmp_db)
+        store = Store(_tmp_db)
         try:
             store.ensure_schema()
             result = compare("X", "Y")

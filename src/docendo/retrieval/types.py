@@ -75,7 +75,7 @@ class Query(BaseModel):
     limit: int = Field(default=10, ge=1, le=20, description="Max hits to return.")
 
 
-_ID_PATTERN = r"^[A-Za-z0-9._:/+\-]+$"
+ID_PATTERN = r"^[A-Za-z0-9._:/+\-]+$"
 
 
 class Lookup(BaseModel):
@@ -84,7 +84,7 @@ class Lookup(BaseModel):
     id: str = Field(
         min_length=1,
         max_length=64,
-        pattern=_ID_PATTERN,
+        pattern=ID_PATTERN,
         description="Circular ID (alphanumerics, dot, slash, underscore, colon, plus, hyphen).",
     )
 
@@ -108,8 +108,8 @@ class Recent(BaseModel):
 class Pair(BaseModel):
     """Inputs to the compare_circulars tool."""
 
-    id_a: str = Field(min_length=1, max_length=64, pattern=_ID_PATTERN)
-    id_b: str = Field(min_length=1, max_length=64, pattern=_ID_PATTERN)
+    id_a: str = Field(min_length=1, max_length=64, pattern=ID_PATTERN)
+    id_b: str = Field(min_length=1, max_length=64, pattern=ID_PATTERN)
 
 
 # ---------------------------------------------------------------------------

@@ -41,7 +41,7 @@ def _fake_record(*args, **kwargs):
 
 
 @pytest.fixture
-def env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+def _env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     db = tmp_path / "docendo.sqlite3"
     monkeypatch.setenv("STORE_PATH", str(db))
     monkeypatch.setenv("VECTOR_DIMS", "4")
@@ -54,12 +54,12 @@ def env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
 
 
 class TestPipelineDispatch:
-    def test_routes_to_sqlite_with_embeddings(self, env: Path) -> None:
+    def test_routes_to_sqlite_with_embeddings(self, _env: Path) -> None:
         from docendo.config import reset_settings_cache
         from docendo.ingestion.ingest import run
         from docendo.retrieval import embedder
 
-        pdf_path = _write_fake_pdf(env / "raw" / "doc1.pdf")
+        pdf_path = _write_fake_pdf(_env / "raw" / "doc1.pdf")
         fake_doc = MagicMock()
         fake_doc.circular_id = "DOC1"
         fake_doc.title = "Doc One"
@@ -86,7 +86,7 @@ class TestPipelineDispatch:
             ),
         ):
             report = run(
-                raw_dir=env / "raw",
+                raw_dir=_env / "raw",
                 chunk_size=8,
                 chunk_overlap=2,
                 settings=None,
@@ -98,12 +98,12 @@ class TestPipelineDispatch:
         assert report.skipped == 0
         assert report.failed == []
 
-    def test_skips_unchanged_content_hash(self, env: Path) -> None:
+    def test_skips_unchanged_content_hash(self, _env: Path) -> None:
         from docendo.config import reset_settings_cache
         from docendo.ingestion.ingest import run
         from docendo.retrieval import embedder
 
-        pdf_path = _write_fake_pdf(env / "raw" / "doc1.pdf")
+        pdf_path = _write_fake_pdf(_env / "raw" / "doc1.pdf")
         fake_doc = MagicMock()
         fake_doc.circular_id = "DOC1"
         fake_doc.title = "Doc One"
@@ -130,7 +130,7 @@ class TestPipelineDispatch:
             ),
         ):
             first = run(
-                raw_dir=env / "raw",
+                raw_dir=_env / "raw",
                 chunk_size=8,
                 chunk_overlap=2,
             )
@@ -138,7 +138,7 @@ class TestPipelineDispatch:
             assert first.skipped == 0
 
             second = run(
-                raw_dir=env / "raw",
+                raw_dir=_env / "raw",
                 chunk_size=8,
                 chunk_overlap=2,
             )

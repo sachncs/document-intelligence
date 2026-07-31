@@ -21,8 +21,8 @@ import litellm
 from docendo.config import Settings, get_settings
 from docendo.exceptions import EmbeddingProviderError
 
-_CACHE_MAX = 8192
-_CACHE: OrderedDict[tuple[Any, ...], list[float]] = OrderedDict()
+CACHE_MAX = 8192
+CACHE: OrderedDict[tuple[Any, ...], list[float]] = OrderedDict()
 
 
 def hash(text: str) -> str:
@@ -34,22 +34,22 @@ def key(text: str, settings: Settings) -> tuple[Any, ...]:
 
 
 def get(key: tuple[Any, ...]) -> list[float] | None:
-    if key not in _CACHE:
+    if key not in CACHE:
         return None
-    _CACHE.move_to_end(key)
-    return _CACHE[key]
+    CACHE.move_to_end(key)
+    return CACHE[key]
 
 
 def put(key: tuple[Any, ...], vec: list[float]) -> None:
-    _CACHE[key] = vec
-    _CACHE.move_to_end(key)
-    while len(_CACHE) > _CACHE_MAX:
-        _CACHE.popitem(last=False)
+    CACHE[key] = vec
+    CACHE.move_to_end(key)
+    while len(CACHE) > CACHE_MAX:
+        CACHE.popitem(last=False)
 
 
 def reset() -> None:
     """Clear the in-memory embedding cache (used by tests)."""
-    _CACHE.clear()
+    CACHE.clear()
 
 
 async def aembed(

@@ -201,7 +201,7 @@ def probe_embedding_dim(
     if not api_base.endswith("/v1"):
         api_base = f"{api_base}/v1"
 
-    async def _probe() -> Any:
+    async def probe() -> Any:
         return await litellm.aembedding(
             model=settings.vector_id,
             input=["dimension probe"],
@@ -211,7 +211,7 @@ def probe_embedding_dim(
         )
 
     try:
-        resp = asyncio.run(_probe())
+        resp = asyncio.run(probe())
     except Exception as exc:
         raise ConfigurationError(
             f"Embedding probe failed for {settings.vector_id!r} at "

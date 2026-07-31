@@ -17,7 +17,7 @@ from docendo.eval.summarize import dump, render
 
 
 @pytest.fixture
-def sample_results() -> list[Outcome]:
+def _sample_results() -> list[Outcome]:
     return [
         Outcome(
             case_name="kyc",
@@ -69,9 +69,9 @@ def sample_results() -> list[Outcome]:
 
 
 class TestReportGeneration:
-    def test_report_contains_tables(self, sample_results: list[Outcome], tmp_path: Path) -> None:
+    def test_report_contains_tables(self, _sample_results: list[Outcome], tmp_path: Path) -> None:
         out = tmp_path / "report.md"
-        render(sample_results, out)
+        render(_sample_results, out)
         assert out.exists()
         text = out.read_text()
         assert "docendo Evaluation Report" in text
@@ -81,17 +81,17 @@ class TestReportGeneration:
         assert "kyc" in text and "npa" in text
         assert "%" in text
 
-    def test_aggregate_metrics(self, sample_results: list[Outcome]) -> None:
+    def test_aggregate_metrics(self, _sample_results: list[Outcome]) -> None:
         from docendo.eval.summarize import aggregate
 
-        rep = aggregate(sample_results)
+        rep = aggregate(_sample_results)
         assert rep.grounded_hallucination_rate == pytest.approx(0.0)
         assert rep.ungrounded_hallucination_rate == pytest.approx(0.75)
         assert rep.grounded_citation_accuracy == 1.0
 
-    def test_write_jsonl(self, sample_results: list[Outcome], tmp_path: Path) -> None:
+    def test_write_jsonl(self, _sample_results: list[Outcome], tmp_path: Path) -> None:
         out = tmp_path / "results.jsonl"
-        dump(sample_results, out)
+        dump(_sample_results, out)
         lines = out.read_text().splitlines()
         assert len(lines) == 2
         for line in lines:
@@ -99,10 +99,10 @@ class TestReportGeneration:
             assert "case_name" in data
             assert "grounded_hallucination" in data
 
-    def test_jsonl_round_trip_preserves_claims(self, sample_results: list[Outcome], tmp_path: Path) -> None:
+    def test_jsonl_round_trip_preserves_claims(self, _sample_results: list[Outcome], tmp_path: Path) -> None:
         """claims field survives the JSONL round-trip."""
         out = tmp_path / "results.jsonl"
-        dump(sample_results, out)
+        dump(_sample_results, out)
         for line in out.read_text().splitlines():
             data = json.loads(line)
             assert "claims" in data["grounded_hallucination"]

@@ -114,7 +114,7 @@ def eval(
     )
 
 
-def _verdict_from_jsonl(d: dict[str, object] | None) -> Verdict | None:
+def verdict_from_jsonl(d: dict[str, object] | None) -> Verdict | None:
     if d is None:
         return None
     # JSONL to_dict() includes derived properties (hallucination_rate, grounding_score)
@@ -157,9 +157,9 @@ def report(
                 metadata=r.get("metadata", {}),
                 grounded_answer=r.get("grounded_answer", ""),
                 grounded_citations=r.get("grounded_citations", []),
-                grounded_hallucination=_verdict_from_jsonl(r.get("grounded_hallucination")),
+                grounded_hallucination=verdict_from_jsonl(r.get("grounded_hallucination")),
                 ungrounded_answer=r.get("ungrounded_answer", ""),
-                ungrounded_hallucination=_verdict_from_jsonl(r.get("ungrounded_hallucination")),
+                ungrounded_hallucination=verdict_from_jsonl(r.get("ungrounded_hallucination")),
             )
         )
     target = out or (settings.reports_dir / "eval_report.md")

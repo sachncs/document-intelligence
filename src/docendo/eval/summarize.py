@@ -95,7 +95,7 @@ def aggregate(outcomes: list[Outcome]) -> Report:
     )
 
 
-def _render_markdown(report: Report) -> str:
+def render_markdown(report: Report) -> str:
     lines: list[str] = []
     lines.append("# docendo Evaluation Report")
     lines.append("")
@@ -148,7 +148,7 @@ def _render_markdown(report: Report) -> str:
 def render(outcomes: list[Outcome], output_path: Path | str) -> Report:
     """Compute and write the eval report."""
     report = aggregate(outcomes)
-    md = _render_markdown(report)
+    md = render_markdown(report)
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(md, encoding="utf-8")

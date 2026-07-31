@@ -10,14 +10,14 @@ import logging
 import sys
 from typing import Final
 
-_CONFIGURED: bool = False
+CONFIGURED: bool = False
 _LOGGER_NAME: Final[str] = "docendo"
 
 
 def configure_logging(level: str = "INFO") -> None:
     """Configure the root logger once. Subsequent calls are no-ops."""
-    global _CONFIGURED
-    if _CONFIGURED:
+    global CONFIGURED
+    if CONFIGURED:
         return
 
     numeric_level = getattr(logging, level.upper(), logging.INFO)
@@ -37,7 +37,7 @@ def configure_logging(level: str = "INFO") -> None:
     for noisy in ("httpx", "httpcore", "litellm"):
         logging.getLogger(noisy).setLevel(logging.WARNING)
 
-    _CONFIGURED = True
+    CONFIGURED = True
 
 
 def get_logger(name: str | None = None) -> logging.Logger:

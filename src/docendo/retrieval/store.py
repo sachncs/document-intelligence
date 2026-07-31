@@ -98,9 +98,9 @@ class Store:
             detect_types=sqlite3.PARSE_DECLTYPES,
         )
         self._conn.row_factory = sqlite3.Row
-        self._setup_connection()
+        self.setup_connection()
 
-    def _setup_connection(self) -> None:
+    def setup_connection(self) -> None:
         c = self._conn
         c.execute("PRAGMA journal_mode=WAL")
         c.execute("PRAGMA synchronous=NORMAL")
@@ -290,8 +290,8 @@ class Store:
 
 
         fts_query = fts_escape(query)
-        lexical_rows = self._lex(fts_query, limit * 4)
-        vector_rows = self._vec(query, limit * 4)
+        lexical_rows = self.lex(fts_query, limit * 4)
+        vector_rows = self.vec(query, limit * 4)
 
         k0 = self.settings.rrf_k
         scores: dict[int, float] = {}
@@ -315,7 +315,7 @@ class Store:
             hits.append(hit)
         return Results(query=query, hits=hits)
 
-    def _lex(self, fts_query: str, k: int) -> list[sqlite3.Row]:
+    def lex(self, fts_query: str, k: int) -> list[sqlite3.Row]:
         sql = """
         SELECT c.id, c.circular_id, c.title, c.text, c.issue_date, c.topic,
                c.source_url, c.chunk_index, c.chunk_count,
@@ -330,12 +330,12 @@ class Store:
         with self._lock:
             return list(self._conn.execute(sql, (fts_query, k)).fetchall())
 
-    def _vec(self, query: str, k: int) -> list[sqlite3.Row]:
+    def vec(self, query: str, k: int) -> list[sqlite3.Row]:
         import asyncio
 
         from docendo.retrieval.embedder import aembed
 
-        async def _go() -> list[list[float]]:
+        async def go() -> list[list[float]]:
             return await aembed([query], settings=self.settings)
 
         try:
@@ -344,12 +344,12 @@ class Store:
                 import concurrent.futures
 
                 with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
-                    future = ex.submit(asyncio.run, _go())
+                    future = ex.submit(asyncio.run, go())
                     vecs = future.result()
             else:
-                vecs = asyncio.run(_go())
+                vecs = asyncio.run(go())
         except RuntimeError:
-            vecs = asyncio.run(_go())
+            vecs = asyncio.run(go())
 
         if not vecs or not vecs[0]:
             return []

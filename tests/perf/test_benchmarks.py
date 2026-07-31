@@ -99,7 +99,7 @@ def _maybe_write_perf_report(name: str, payload: dict) -> None:
 
 
 @pytest.fixture
-def tmp_db(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+def _tmp_db(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     db = tmp_path / "docendo.sqlite3"
     monkeypatch.setenv("STORE_PATH", str(db))
     monkeypatch.setenv("VECTOR_DIMS", str(DIMS))
@@ -117,8 +117,8 @@ def tmp_db(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
 @pytest.mark.perf
 @pytest.mark.skipif(not _RUN_PERF, reason="Set RUN_PERF=1 to run benchmarks")
 class TestIngestBudget:
-    def test_ingest_100_synthetic_chunks_under_5_seconds(self, tmp_db: Path) -> None:
-        store = Store(tmp_db)
+    def test_ingest_100_synthetic_chunks_under_5_seconds(self, _tmp_db: Path) -> None:
+        store = Store(_tmp_db)
         try:
             store.ensure_schema()
             start = time.perf_counter()
@@ -136,8 +136,8 @@ class TestIngestBudget:
 @pytest.mark.perf
 @pytest.mark.skipif(not _RUN_PERF, reason="Set RUN_PERF=1 to run benchmarks")
 class TestSearchLatency:
-    def test_hybrid_search_p95_under_100ms(self, tmp_db: Path) -> None:
-        store = Store(tmp_db)
+    def test_hybrid_search_p95_under_100ms(self, _tmp_db: Path) -> None:
+        store = Store(_tmp_db)
         try:
             store.ensure_schema()
             _populate(store, 200)
@@ -175,10 +175,10 @@ class TestSearchLatency:
 @pytest.mark.skipif(not _RUN_PERF, reason="Set RUN_PERF=1 to run benchmarks")
 class TestReingestSkip:
     def test_reingest_of_unchanged_corpus_under_10_seconds(
-        self, tmp_db: Path
+        self, _tmp_db: Path
     ) -> None:
         """Re-ingesting the same SQLite file makes zero new embedding calls."""
-        store = Store(tmp_db)
+        store = Store(_tmp_db)
         try:
             store.ensure_schema()
             _populate(store, 50)
