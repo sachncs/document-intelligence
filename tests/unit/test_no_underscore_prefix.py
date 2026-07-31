@@ -21,7 +21,6 @@ from pathlib import Path
 
 import pytest
 
-
 ALLOWED_DUNDER = {
     "__init__",
     "__aenter__",
@@ -64,11 +63,6 @@ ALLOWED_DUNDER = {
     "__bool__",
     "__int__",
     "__float__",
-    "__str__",
-    "__repr__",
-    "__len__",
-    "__iter__",
-    "__next__",
     "__dict__",
     "__class__",
     "__bases__",
@@ -91,7 +85,6 @@ ALLOWED_DUNDER = {
     "__loader__",
     "__spec__",
     "__subclasshook__",
-    "__class_getitem__",
     "__all__",
 }
 
@@ -113,11 +106,10 @@ def _walk_identifier_violations(tree: ast.AST, source_path: Path) -> list[str]:
         for child in ast.iter_child_nodes(node):
             if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 # Module or class-scope function definition.
-                if scope in {"module", "class"} and not child.name.startswith("_"):
-                    pass  # OK
-                elif scope in {"module", "class"} and child.name.startswith("_"):
-                    if not _is_dunder(child.name):
-                        violations.append(f"{source_path}:{child.lineno}: {child.name} (function)")
+                if scope in {"module", "class"} and child.name.startswith("_") and not _is_dunder(child.name):
+                    violations.append(
+                        f"{source_path}:{child.lineno}: {child.name} (function)"
+                    )
                 # Always recurse into nested defs (they're local scope).
                 visit(child, "function")
 
@@ -131,24 +123,18 @@ def _walk_identifier_violations(tree: ast.AST, source_path: Path) -> list[str]:
                 # Module/class-level variable assignments.
                 if scope in {"module", "class"}:
                     for target in child.targets:
-                        if isinstance(target, ast.Name) and target.id.startswith("_"):
-                            if not _is_dunder(target.id):
-                                violations.append(
-                                    f"{source_path}:{child.lineno}: variable {target.id}"
-                                )
-                        elif isinstance(target, ast.Attribute):
-                            # self._foo is an INSTANCE attribute, which is private.
-                            # But these are not module/class scope; skip.
-                            pass
+                        if isinstance(target, ast.Name) and target.id.startswith("_") and not _is_dunder(target.id):
+                            violations.append(
+                                f"{source_path}:{child.lineno}: variable {target.id}"
+                            )
 
             elif isinstance(child, ast.AnnAssign):
                 if scope in {"module", "class"}:
                     target = child.target
-                    if isinstance(target, ast.Name) and target.id.startswith("_"):
-                        if not _is_dunder(target.id):
-                            violations.append(
-                                f"{source_path}:{child.lineno}: variable {target.id}"
-                            )
+                    if isinstance(target, ast.Name) and target.id.startswith("_") and not _is_dunder(target.id):
+                        violations.append(
+                            f"{source_path}:{child.lineno}: variable {target.id}"
+                        )
 
     visit(tree, "module")
     return violations

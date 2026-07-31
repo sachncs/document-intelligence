@@ -44,7 +44,7 @@ def sha256_file(path: Path) -> str:
     return h.hexdigest()
 
 
-def render_page(pdf_path: Path, page_number: int, dpi: int = _VISION_DPI) -> bytes:
+def render_page(pdf_path: Path, page_number: int, dpi: int = VISION_DPI) -> bytes:
     """Render a 1-indexed PDF page to PNG bytes."""
     try:
         pdf = pdfium.PdfDocument(str(pdf_path))
@@ -82,7 +82,7 @@ def read_page(png_bytes: bytes, settings: Settings | None = None) -> str:
                 {
                     "role": "user",
                     "content": [
-                        {"type": "text", "text": _VISION_PROMPT},
+                        {"type": "text", "text": VISION_PROMPT},
                         {
                             "type": "image_url",
                             "image_url": {"url": f"data:image/png;base64,{b64}"},
@@ -178,7 +178,7 @@ def read(
     pages: list[Page] = []
     for i, page in enumerate(reader.pages, start=1):
         text = split_page(page).strip()
-        if len(text) >= _TEXT_PAGE_THRESHOLD:
+        if len(text) >= TEXT_PAGE_THRESHOLD:
             pages.append(Page(page_number=i, text=text, method="text"))
             continue
 

@@ -43,7 +43,7 @@ def configure_logging(level: str = "INFO") -> None:
 def get_logger(name: str | None = None) -> logging.Logger:
     """Return a logger under the docendo namespace."""
     if name is None:
-        return logging.getLogger(_LOGGER_NAME)
-    if not name.startswith(_LOGGER_NAME):
-        name = f"{_LOGGER_NAME}.{name}"
+        return logging.getLogger(LOGGER_NAME)
+    if not name.startswith(LOGGER_NAME):
+        name = f"{LOGGER_NAME}.{name}"
     return logging.getLogger(name)
