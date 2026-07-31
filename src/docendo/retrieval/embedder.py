@@ -85,7 +85,7 @@ async def aembed(
     if not uncached_idx:
         return [v if v is not None else [] for v in vectors]
 
-    last_exc: Exception | None = None
+    last_exc: BaseException | None = None
     for attempt in range(3):
         try:
             for start in range(0, len(uncached_idx), batch_size):
@@ -111,18 +111,21 @@ async def aembed(
             break
         except EmbeddingProviderError:
             raise
-        except Exception as exc:
+        except (
+            litellm.APIConnectionError,  # type: ignore[attr-defined]
+            litellm.exceptions.Timeout,
+        ) as exc:
             last_exc = exc
             if attempt == 2:
                 break
             await asyncio.sleep(0.5 * (2**attempt))
-    if last_exc is not None and any(v is None for v in vectors):
+
+    if last_exc is not None:
         raise EmbeddingProviderError(
-            f"Embedding call failed for {settings.vector_id!r} at {api_base!r}: {last_exc}"
+            f"Embedding call failed for {settings.vector_id!r} at {api_base!r} "
+            f"after 3 attempts"
         ) from last_exc
 
-    # Final safety net: any remaining None means the batch loop exited
-    # without raising and without filling — refuse to return partial results.
     if any(v is None for v in vectors):
         missing = [i for i, v in enumerate(vectors) if v is None]
         raise EmbeddingProviderError(

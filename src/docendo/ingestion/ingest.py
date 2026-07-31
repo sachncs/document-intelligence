@@ -199,7 +199,11 @@ def run(
 
     asyncio.run(run_all())
 
-    with contextlib.suppress(Exception):
+    # PRAGMA optimize can fail on disk-full or read-only filesystems; let
+    # other errors (MemoryError, programming bugs) propagate.
+    import sqlite3 as _sqlite3
+
+    with contextlib.suppress(_sqlite3.DatabaseError, OSError):
         retriever.optimize()
 
     logger.info(
