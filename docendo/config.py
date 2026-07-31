@@ -5,10 +5,12 @@ Single source of truth for all runtime knobs. Reads from ``.env`` if present.
 
 from __future__ import annotations
 
+import asyncio
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Literal
 
+import litellm  # type: ignore[import-untyped]
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -212,11 +214,26 @@ def probe_embedding_dim(
 
     try:
         resp = asyncio.run(probe())
-    except Exception as exc:
+    except litellm.APIError as exc:  # type: ignore[attr-defined]
         raise ConfigurationError(
             f"Embedding probe failed for {settings.vector_id!r} at "
-            f"{api_base!r}: {exc}. Check VECTOR_KEY, VECTOR_BASE, and the model id."
+            f"{api_base!r}: {type(exc).__name__}: {exc}. "
+            "Check VECTOR_KEY, VECTOR_BASE, and the model id."
         ) from exc
+    except Exception as exc:
+        # OpenAI SDK exception hierarchy (NotFoundError, BadRequestError,
+        # AuthenticationError, RateLimitError, etc.) is not part of
+        # litellm.APIError in this version. Catch the base Exception only
+        # to identify OpenAI SDK errors by ancestry and re-raise as
+        # ConfigurationError; anything else propagates as-is.
+        mro_modules = {c.__module__ for c in type(exc).__mro__}
+        if "openai" in mro_modules:
+            raise ConfigurationError(
+                f"Embedding probe failed for {settings.vector_id!r} at "
+                f"{api_base!r}: {type(exc).__name__}: {exc}. "
+                "Check VECTOR_KEY, VECTOR_BASE, and the model id."
+            ) from exc
+        raise
 
     try:
         observed = len(resp.data[0]["embedding"])

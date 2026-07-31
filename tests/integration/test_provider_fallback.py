@@ -7,7 +7,6 @@ from unittest.mock import patch
 
 import litellm  # type: ignore[import-untyped]
 import pytest
-
 from docendo.config import reset_settings_cache
 from docendo.exceptions import EmbeddingProviderError
 from docendo.retrieval import embedder

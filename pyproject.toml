@@ -79,11 +79,11 @@ Repository = "https://github.com/sachin/docendo"
 Issues = "https://github.com/sachin/docendo/issues"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/docendo"]
+packages = ["docendo"]
 
 [tool.hatch.build.targets.sdist]
 include = [
-    "src/docendo",
+    "docendo",
     "README.md",
     "LICENSE",
     "CHANGELOG.md",
@@ -97,7 +97,7 @@ include = [
 [tool.ruff]
 line-length = 100
 target-version = "py311"
-src = ["src", "tests"]
+src = ["docendo", "tests"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "UP", "B", "C4", "SIM", "RUF"]
@@ -105,7 +105,7 @@ ignore = ["E501", "B008"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["B011"]
-"src/docendo/ui/*" = ["E402"]
+    "docendo/ui/*" = ["E402"]
 
 [tool.ruff.format]
 quote-style = "double"
@@ -146,7 +146,7 @@ markers = [
 ]
 
 [tool.coverage.run]
-source = ["src/docendo"]
+source = ["docendo"]
 omit = ["*/tests/*", "*/__main__.py"]
 
 [tool.coverage.report]

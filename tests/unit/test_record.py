@@ -3,9 +3,8 @@
 from __future__ import annotations
 
 import pytest
-from pydantic import HttpUrl, ValidationError
-
 from docendo.retrieval.record import ChunkRecord
+from pydantic import HttpUrl, ValidationError
 
 
 def _record(**overrides) -> ChunkRecord:

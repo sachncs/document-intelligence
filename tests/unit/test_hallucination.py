@@ -9,7 +9,6 @@ from typing import Any
 from unittest.mock import Mock, patch
 
 import pytest
-
 from docendo.eval.judge import score
 
 

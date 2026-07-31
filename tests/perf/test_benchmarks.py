@@ -19,7 +19,6 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-
 from docendo.config import reset_settings_cache
 from docendo.retrieval._internal import reset as reset_internal
 from docendo.retrieval.store import Store
@@ -42,9 +41,8 @@ def _fake_embed(texts, *, settings=None):
 
 def _populate(store: Store, n: int) -> None:
     """Insert ``n`` small synthetic chunks (one per circular)."""
-    from pydantic import HttpUrl
-
     from docendo.retrieval.record import ChunkRecord
+    from pydantic import HttpUrl
 
     with patch(
         "docendo.retrieval.embedder.aembed",

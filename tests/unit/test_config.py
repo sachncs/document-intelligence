@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-
 from docendo.config import Settings
 from docendo.exceptions import ConfigurationError
 

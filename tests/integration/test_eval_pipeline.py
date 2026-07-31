@@ -10,7 +10,6 @@ import json
 from pathlib import Path
 
 import pytest
-
 from docendo.eval.driver import Outcome
 from docendo.eval.judge import Verdict as Verdict
 from docendo.eval.summarize import dump, render

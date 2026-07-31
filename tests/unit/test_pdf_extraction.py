@@ -9,7 +9,6 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from docendo.exceptions import PDFExtractionError
 from docendo.ingestion.reader import parse_date, read, read_page, render_page
 

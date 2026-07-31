@@ -48,7 +48,9 @@ def render_page(pdf_path: Path, page_number: int, dpi: int = VISION_DPI) -> byte
     """Render a 1-indexed PDF page to PNG bytes."""
     try:
         pdf = pdfium.PdfDocument(str(pdf_path))
-    except Exception as exc:
+    except FileNotFoundError as exc:
+        raise PDFExtractionError(f"PDF not found: {pdf_path}") from exc
+    except OSError as exc:
         raise PDFExtractionError(f"Failed to open PDF {pdf_path}: {exc}") from exc
 
     if page_number < 1 or page_number > len(pdf):
@@ -73,28 +75,25 @@ def read_page(png_bytes: bytes, settings: Settings | None = None) -> str:
     import base64
 
     b64 = base64.b64encode(png_bytes).decode("ascii")
-    try:
-        response = completion(
-            model=settings.chat,
-            api_key=settings.chat_key,
-            api_base=settings.chat_url,
-            messages=[
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": VISION_PROMPT},
-                        {
-                            "type": "image_url",
-                            "image_url": {"url": f"data:image/png;base64,{b64}"},
-                        },
-                    ],
-                }
-            ],
-            max_tokens=4096,
-            temperature=0.0,
-        )
-    except Exception as exc:
-        raise VisionAPIError(f"Vision API call failed: {exc}") from exc
+    response = completion(
+        model=settings.chat,
+        api_key=settings.chat_key,
+        api_base=settings.chat_url,
+        messages=[
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": VISION_PROMPT},
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": f"data:image/png;base64,{b64}"},
+                    },
+                ],
+            }
+        ],
+        max_tokens=4096,
+        temperature=0.0,
+    )
 
     try:
         content: str = response.choices[0].message.content
@@ -108,10 +107,12 @@ def read_page(png_bytes: bytes, settings: Settings | None = None) -> str:
 
 
 def split_page(page: pypdf.PageObject) -> str:
+    """Extract text from a pypdf PageObject; return empty string on any failure."""
     try:
-        return page.extract_text() or ""
-    except Exception:
+        text = page.extract_text()
+    except (AttributeError, TypeError, ValueError):
         return ""
+    return text or ""
 
 
 def parse_date(text: str) -> str | None:
@@ -172,8 +173,10 @@ def read(
 
     try:
         reader = pypdf.PdfReader(str(pdf_path))
-    except Exception as exc:
+    except (FileNotFoundError, OSError) as exc:
         raise PDFExtractionError(f"Failed to open PDF {pdf_path}: {exc}") from exc
+    except pypdf.errors.PdfStreamError as exc:
+        raise PDFExtractionError(f"Corrupt or encrypted PDF {pdf_path}: {exc}") from exc
 
     pages: list[Page] = []
     for i, page in enumerate(reader.pages, start=1):

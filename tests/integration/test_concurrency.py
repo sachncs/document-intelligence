@@ -7,12 +7,11 @@ import threading
 from pathlib import Path
 
 import pytest
-from pydantic import HttpUrl
-
 from docendo.config import reset_settings_cache
 from docendo.retrieval._internal import reset as reset_internal
 from docendo.retrieval.record import ChunkRecord
 from docendo.retrieval.store import Store
+from pydantic import HttpUrl
 
 DIMS = 4
 

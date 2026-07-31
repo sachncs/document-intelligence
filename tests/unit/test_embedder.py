@@ -6,7 +6,6 @@ import asyncio
 from unittest.mock import patch
 
 import pytest
-
 from docendo.config import reset_settings_cache
 from docendo.exceptions import EmbeddingProviderError
 from docendo.retrieval import embedder
@@ -65,12 +64,12 @@ class TestCache:
 
         with patch.object(embedder, "aembed", side_effect=_fake_seq):
             # Fill the cache with CACHE_MAX + 1 entries.
-            from docendo.retrieval.embedder import _CACHE_MAX
+            from docendo.retrieval.embedder import CACHE_MAX
 
-            texts = [f"text-{i}" for i in range(_CACHE_MAX + 1)]
+            texts = [f"text-{i}" for i in range(CACHE_MAX + 1)]
             asyncio.run(embedder.aembed(texts))
             # The cache must not exceed the limit.
-            assert len(embedder._CACHE) <= _CACHE_MAX  # type: ignore[attr-defined]
+            assert len(embedder.CACHE) <= CACHE_MAX
 
 
 class TestErrors:
@@ -95,13 +94,16 @@ class TestErrors:
         """A mock that returns valid + invalid vectors raises."""
         import litellm  # type: ignore[import-untyped]
 
-        class _Resp:
+        class FakeResp:
             def __init__(self, vecs: list[list[float]]) -> None:
                 self.data = [{"embedding": v} for v in vecs]
 
+            def __getitem__(self, key: str):  # type: ignore[no-untyped-def]
+                return getattr(self, key)
+
         async def _fake_partial(*args, **kwargs):
             # First vector matches dims, second is empty (crash path).
-            return _Resp([[0.1] * 4, []])
+            return FakeResp([[0.1] * 4, []])
 
         with (
             patch.object(litellm, "aembedding", side_effect=_fake_partial),

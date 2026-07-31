@@ -7,7 +7,6 @@ from unittest.mock import MagicMock, patch
 
 import pypdf
 import pytest
-
 from docendo.models import Page, Record
 
 

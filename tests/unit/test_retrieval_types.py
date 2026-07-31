@@ -5,8 +5,6 @@ from __future__ import annotations
 import time
 
 import pytest
-from pydantic import ValidationError
-
 from docendo.retrieval.types import (
     Document,
     Hit,
@@ -17,6 +15,7 @@ from docendo.retrieval.types import (
     Recent,
     Results,
 )
+from pydantic import ValidationError
 
 
 class TestQuery:

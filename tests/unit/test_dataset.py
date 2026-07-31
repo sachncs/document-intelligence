@@ -6,7 +6,6 @@ import json
 from pathlib import Path
 
 import pytest
-
 from docendo.eval.cases import Case, load, save
 
 

@@ -5,7 +5,6 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from docendo.agent import SYSTEM_PROMPT, agent, model, reset, tools
 from docendo.config import reset_settings_cache
 

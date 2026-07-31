@@ -3,9 +3,8 @@
 from __future__ import annotations
 
 import pytest
-from pydantic import ValidationError
-
 from docendo.models import Answer, Cite, Page, Record
+from pydantic import ValidationError
 
 
 class TestCite:

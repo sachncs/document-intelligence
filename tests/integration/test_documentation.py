@@ -4,10 +4,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from typer.testing import CliRunner
-
 from docendo.cli.main import app
 from docendo.config import reset_settings_cache
+from typer.testing import CliRunner
 
 
 class TestKnownGapsLocation:

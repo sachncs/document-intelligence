@@ -5,7 +5,6 @@ from __future__ import annotations
 import io
 
 import pytest
-
 from docendo.cli.checkup import run
 from docendo.config import reset_settings_cache
 

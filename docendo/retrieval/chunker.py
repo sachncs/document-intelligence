@@ -33,14 +33,19 @@ def encode(text: str, settings: Settings | None = None) -> list[int]:
     settings = settings or get_settings()
     try:
         result = tokenizer().encode(text)
-    except Exception as exc:
+    except (OSError, ValueError, KeyError, ImportError) as exc:
+        # gigatoken can fail with OSError (model file missing on disk),
+        # ValueError (invalid model id), KeyError (tokenizer config), or
+        # ImportError (a dependency is missing).
         raise ConfigurationError(
-            f"Failed to load tokenizer {settings.tokenizer_model!r}: {exc}. "
+            f"Failed to load tokenizer {settings.tokenizer_model!r}: "
+            f"{type(exc).__name__}: {exc}. "
             "Check the model name and that gigatoken is installed."
         ) from exc
     try:
         return [int(x) for x in result]
-    except TypeError:
+    except (TypeError, ValueError):
+        # gigatoken may return numpy arrays, lists, or other iterables; coerce.
         return list(result)
 
 

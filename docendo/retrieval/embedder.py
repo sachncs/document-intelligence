@@ -4,7 +4,7 @@ Embeddings are cached in memory keyed by ``(vector_id, dims, sha256(text))``.
 The on-disk SQLite store is the persistent cache; this in-memory cache avoids
 re-embedding the same text within a single process.
 
-Empty vectors raise ``EmbeddingProviderError`` immediately rather than
+Empty vectors raise :class:`EmbeddingProviderError` immediately rather than
 returning ``[]`` (which would later crash sqlite-vector).
 """
 
@@ -16,13 +16,14 @@ import math
 from collections import OrderedDict
 from typing import Any
 
-import litellm
+import litellm  # type: ignore[import-untyped]
 
 from docendo.config import Settings, get_settings
 from docendo.exceptions import EmbeddingProviderError
 
+
 CACHE_MAX = 8192
-CACHE: OrderedDict[tuple[Any, ...], list[float]] = OrderedDict()
+CACHE: "OrderedDict[tuple[Any, ...], list[float]]" = OrderedDict()
 
 
 def hash(text: str) -> str:
@@ -33,16 +34,16 @@ def key(text: str, settings: Settings) -> tuple[Any, ...]:
     return (hash(text), settings.vector_id, settings.vector_dims)
 
 
-def get(key: tuple[Any, ...]) -> list[float] | None:
-    if key not in CACHE:
+def get(k: tuple[Any, ...]) -> list[float] | None:
+    if k not in CACHE:
         return None
-    CACHE.move_to_end(key)
-    return CACHE[key]
+    CACHE.move_to_end(k)
+    return CACHE[k]
 
 
-def put(key: tuple[Any, ...], vec: list[float]) -> None:
-    CACHE[key] = vec
-    CACHE.move_to_end(key)
+def put(k: tuple[Any, ...], vec: list[float]) -> None:
+    CACHE[k] = vec
+    CACHE.move_to_end(k)
     while len(CACHE) > CACHE_MAX:
         CACHE.popitem(last=False)
 
@@ -50,6 +51,18 @@ def put(key: tuple[Any, ...], vec: list[float]) -> None:
 def reset() -> None:
     """Clear the in-memory embedding cache (used by tests)."""
     CACHE.clear()
+
+
+def cosine(a: list[float], b: list[float]) -> float:
+    """Cosine similarity between two equal-length vectors; 0.0 on size mismatch."""
+    if len(a) != len(b) or not a:
+        return 0.0
+    dot = sum(x * y for x, y in zip(a, b, strict=True))
+    na = math.sqrt(sum(x * x for x in a))
+    nb = math.sqrt(sum(y * y for y in b))
+    if na == 0 or nb == 0:
+        return 0.0
+    return dot / (na * nb)
 
 
 async def aembed(
@@ -62,6 +75,11 @@ async def aembed(
     Returns one vector per input, in input order. Each vector has length
     ``settings.vector_dims``; a length mismatch raises
     :class:`EmbeddingProviderError`.
+
+    Retries on transient network errors (``APIConnectionError``, ``Timeout``).
+    Any other litellm exception (e.g. ``NotFoundError``, ``BadRequestError``)
+    is wrapped as :class:`EmbeddingProviderError` and raised immediately
+    so the user gets a single typed error path.
     """
     settings = settings or get_settings()
     if not texts:
@@ -83,7 +101,7 @@ async def aembed(
             uncached_idx.append(i)
 
     if not uncached_idx:
-        return [v if v is not None else [] for v in vectors]
+        return [v if v is not None else [] for v in vectors]  # type: ignore[misc]
 
     last_exc: BaseException | None = None
     for attempt in range(3):
@@ -119,32 +137,39 @@ async def aembed(
             if attempt == 2:
                 break
             await asyncio.sleep(0.5 * (2**attempt))
-
-    if last_exc is not None:
-        raise EmbeddingProviderError(
-            f"Embedding call failed for {settings.vector_id!r} at {api_base!r} "
-            f"after 3 attempts"
-        ) from last_exc
+        except litellm.APIError as exc:  # type: ignore[attr-defined]
+            # Non-retryable provider error (litellm's own APIError hierarchy).
+            raise EmbeddingProviderError(
+                f"Embedding call failed for {settings.vector_id!r} at {api_base!r}: "
+                f"{type(exc).__name__}: {exc}"
+            ) from exc
+        except Exception as exc:
+            # The OpenAI SDK exception hierarchy (NotFoundError, BadRequestError,
+            # AuthenticationError, RateLimitError, etc.) is not part of
+            # litellm.APIError in this litellm version. We catch the base
+            # Exception only to identify OpenAI SDK errors by ancestry and
+            # surface them as the typed provider error. Anything else re-raises
+            # so genuine programming bugs are not silently swallowed.
+            mro_modules = {c.__module__ for c in type(exc).__mro__}
+            if "openai" in mro_modules:
+                raise EmbeddingProviderError(
+                    f"Embedding call failed for {settings.vector_id!r} at {api_base!r}: "
+                    f"{type(exc).__name__}: {exc}"
+                ) from exc
+            raise
 
     if any(v is None for v in vectors):
+        if last_exc is not None:
+            raise EmbeddingProviderError(
+                f"Embedding call failed for {settings.vector_id!r} at {api_base!r} "
+                f"after 3 attempts"
+            ) from last_exc
         missing = [i for i, v in enumerate(vectors) if v is None]
         raise EmbeddingProviderError(
             f"Embedding returned no vector for inputs at indices {missing}"
         )
 
     return vectors  # type: ignore[return-value]
-
-
-def cosine(a: list[float], b: list[float]) -> float:
-    """Cosine similarity between two equal-length vectors; 0.0 on size mismatch."""
-    if len(a) != len(b) or not a:
-        return 0.0
-    dot = sum(x * y for x, y in zip(a, b, strict=True))
-    na = math.sqrt(sum(x * x for x in a))
-    nb = math.sqrt(sum(y * y for y in b))
-    if na == 0 or nb == 0:
-        return 0.0
-    return dot / (na * nb)
 
 
 __all__ = ["aembed", "cosine", "reset"]

@@ -7,7 +7,6 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-
 from docendo.config import reset_settings_cache
 from docendo.exceptions import (
     EmbeddingProviderError,
@@ -27,12 +26,15 @@ class TestTypedExceptions:
         """embedder.aembed raises EmbeddingProviderError on empty vector."""
         import litellm  # type: ignore[import-untyped]
 
-        class _Resp:
+        class FakeResp:
+
+            def __getitem__(self, key):
+                return getattr(self, key)
             def __init__(self) -> None:
                 self.data = [{"embedding": []}]
 
         async def _fake(*args, **kwargs):
-            return _Resp()
+            return FakeResp()
 
         monkeypatch.setenv("VECTOR_KEY", "test")
         monkeypatch.setenv("VECTOR_BASE", "https://embed.example.com")

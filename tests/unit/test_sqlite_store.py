@@ -20,14 +20,13 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-from pydantic import HttpUrl
-
 from docendo.config import reset_settings_cache
 from docendo.retrieval import embedder
 from docendo.retrieval._internal import reset
 from docendo.retrieval.embedder import aembed
 from docendo.retrieval.record import ChunkRecord
 from docendo.retrieval.store import Store, fts_escape, parse_blob
+from pydantic import HttpUrl
 
 DIMS = 8  # small for tests
 
@@ -341,17 +340,19 @@ class TestColumnOrderIndependence:
 class TestEmbeddingDimMismatch:
     def test_dim_mismatch_raises(self) -> None:
         import litellm  # type: ignore[import-untyped]
-
         from docendo.exceptions import EmbeddingProviderError
 
         wrong = [0.0] * (DIMS - 1)  # one short
 
-        class _Resp:
+        class FakeResp:
+
+            def __getitem__(self, key):
+                return getattr(self, key)
             def __init__(self, vec: list[float]) -> None:
                 self.data = [{"embedding": vec}]
 
         async def _fake_litellm(*args, **kwargs):
-            return _Resp(wrong)
+            return FakeResp(wrong)
 
         with (
             patch.object(litellm, "aembedding", side_effect=_fake_litellm),
@@ -362,15 +363,17 @@ class TestEmbeddingDimMismatch:
     def test_empty_embedding_raises(self) -> None:
         """Empty vectors are an error, not silent []."""
         import litellm  # type: ignore[import-untyped]
-
         from docendo.exceptions import EmbeddingProviderError
 
-        class _Resp:
+        class FakeResp:
+
+            def __getitem__(self, key):
+                return getattr(self, key)
             def __init__(self) -> None:
                 self.data = [{"embedding": []}]
 
         async def _fake_empty(*args, **kwargs):
-            return _Resp()
+            return FakeResp()
 
         with (
             patch.object(litellm, "aembedding", side_effect=_fake_empty),

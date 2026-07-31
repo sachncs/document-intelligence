@@ -9,10 +9,9 @@ from pathlib import Path
 
 import pytest
 import yaml
-from typer.testing import CliRunner
-
 from docendo.cli.main import app
 from docendo.config import reset_settings_cache
+from typer.testing import CliRunner
 
 
 @pytest.fixture(autouse=True)
