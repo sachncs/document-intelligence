@@ -67,6 +67,23 @@
       "elapsed_s": 0.00015191698912531137,
       "chunks": 50,
       "embedding_calls": 0
+    },
+    {
+      "name": "ingest_100_chunks",
+      "elapsed_s": 0.007593500078655779,
+      "chunks": 100
+    },
+    {
+      "name": "hybrid_search_latency",
+      "p50_ms": 0.36956253461539745,
+      "p95_ms": 0.43183297384530306,
+      "samples": 50
+    },
+    {
+      "name": "reingest_skip_check",
+      "elapsed_s": 0.00012924999464303255,
+      "chunks": 50,
+      "embedding_calls": 0
     }
   ]
 }

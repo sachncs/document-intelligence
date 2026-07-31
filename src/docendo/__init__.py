@@ -1,10 +1,11 @@
 """docendo: grounded RAG agent for document intelligence."""
 
-from importlib import metadata as _metadata
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as package_version
 
 try:
-    __version__ = _metadata.version("docendo")
-except _metadata.PackageNotFoundError:  # pragma: no cover
+    __version__ = package_version("docendo")
+except PackageNotFoundError:  # pragma: no cover
     __version__ = "0.3.0a1"
 
 from docendo.agent import agent as agent
