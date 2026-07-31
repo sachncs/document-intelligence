@@ -9,6 +9,16 @@ import pytest
 from docendo.config import Settings, get_settings, reset_settings_cache
 
 
+def pytest_configure(config: pytest.Config) -> None:
+    """Register custom markers so unknown-marker warnings disappear."""
+    config.addinivalue_line(
+        "markers", "perf: opt-in performance budget benchmarks (set RUN_PERF=1)"
+    )
+    config.addinivalue_line(
+        "markers", "integration: requires live embedding / MiniMax / Network"
+    )
+
+
 @pytest.fixture(autouse=True)
 def _isolate_env(monkeypatch: pytest.MonkeyPatch) -> None:
     """Ensure tests don't leak env vars to one another."""

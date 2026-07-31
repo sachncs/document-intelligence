@@ -42,6 +42,10 @@ def _fake_embed(texts, *, settings=None):
 
 def _populate(store: Store, n: int) -> None:
     """Insert ``n`` small synthetic chunks (one per circular)."""
+    from pydantic import HttpUrl
+
+    from docendo.retrieval.record import ChunkRecord
+
     with patch(
         "docendo.retrieval.embedder.aembed",
         side_effect=lambda texts, *, settings=None: [
@@ -58,21 +62,21 @@ def _populate(store: Store, n: int) -> None:
                 store.upsert_chunks(
                     f"CIRC{i:04d}",
                     [
-                        {
-                            "circular_id": f"CIRC{i:04d}",
-                            "title": f"Circular {i}",
-                            "text": text,
-                            "issue_date": "2024-01-15",
-                            "topic": "kyc",
-                            "source_url": f"https://rbi.org.in/C{i}",
-                            "page_estimate_start": 1,
-                            "page_estimate_end": 1,
-                            "chunk_index": 0,
-                            "chunk_count": 1,
-                            "extraction_method": "text",
-                            "content_hash": f"h{i}",
-                            "embedding": vec,
-                        }
+                        ChunkRecord(
+                            circular_id=f"CIRC{i:04d}",
+                            title=f"Circular {i}",
+                            text=text,
+                            issue_date="2024-01-15",
+                            topic="kyc",
+                            source_url=HttpUrl(f"https://rbi.org.in/C{i}"),
+                            page_estimate_start=1,
+                            page_estimate_end=1,
+                            chunk_index=0,
+                            chunk_count=1,
+                            extraction_method="text",
+                            content_hash=f"h{i}",
+                            embedding=vec,
+                        )
                     ],
                 )
                 inserted += 1
