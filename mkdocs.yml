@@ -1,0 +1,16 @@
+nav:
+  - Home: index.md
+  - Installation: installation.md
+  - Quickstart: quickstart.md
+  - Architecture: architecture.md
+  - Evaluation: evaluation.md
+  - Security: security.md
+  - Performance: performance.md
+  - Known gaps: KNOWN_GAPS.md
+  - Contributing: contributing.md
+  - API Reference:
+      - Agent: api/agent.md
+      - Retrieval: api/retrieval.md
+      - Eval: api/eval.md
+      - Ingestion: api/ingestion.md
+      - Models: api/models.md

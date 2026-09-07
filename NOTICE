@@ -1,0 +1,30 @@
+bfsi-rbi
+Copyright 2024 sachin
+
+This product includes software developed by third parties:
+
+================================================================================
+SQLite-Vector (sqliteai-vector)
+Copyright (c) 2025 SQLite Cloud, Inc.
+Licensed under the Elastic License 2.0 (modified for open-source use).
+
+The full license text is in LICENSES/sqliteai-vector.md.
+
+Key conditions from the modified Elastic License 2.0:
+- Free for use in open-source projects licensed under an OSI-approved license.
+- Commercial production use, and use as a hosted/managed service, requires
+  a commercial license from SQLite Cloud, Inc.
+
+================================================================================
+Gigatoken
+Copyright (c) 2026 Marcel Rød
+Licensed under the MIT License.
+
+================================================================================
+SQLite
+Public domain.
+
+================================================================================
+Pydantic AI, LiteLLM, Pydantic, Streamlit, and other runtime dependencies
+are governed by their respective licenses (MIT, Apache 2.0, etc.).
+See each project's license file in its distribution for details.

@@ -1,0 +1,63 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg
+*.egg-info/
+.eggs/
+build/
+dist/
+.installed.cfg
+MANIFEST
+
+# Virtual environments
+venv/
+.venv/
+env/
+.env/
+
+# Poetry / hatch
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+.cache/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Logs
+*.log
+logs/
+
+# Secrets & data
+.env
+.env.local
+.env.*.local
+data/raw/*
+!data/raw/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+reports/*.md
+!reports/.gitkeep
+!reports/README.md
+tests/output/
+.pytest_*
+
+# Tool outputs
+mkdocs-site/
+site/
+.mypy_cache/
+.hypothesis/
+
+# OS
+Thumbs.db
