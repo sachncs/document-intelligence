@@ -136,26 +136,18 @@ async def aembed(
             if attempt == 2:
                 break
             await asyncio.sleep(0.5 * (2**attempt))
-        except litellm.APIError as exc:  # type: ignore[attr-defined]
-            # Non-retryable provider error (litellm's own APIError hierarchy).
+        except (
+            litellm.APIError,  # type: ignore[attr-defined]
+            litellm.NotFoundError,  # type: ignore[attr-defined]
+            litellm.AuthenticationError,  # type: ignore[attr-defined]
+            litellm.BadRequestError,  # type: ignore[attr-defined]
+            litellm.PermissionDeniedError,  # type: ignore[attr-defined]
+            litellm.RateLimitError,  # type: ignore[attr-defined]
+        ) as exc:
             raise EmbeddingProviderError(
                 f"Embedding call failed for {settings.vector_id!r} at {api_base!r}: "
                 f"{type(exc).__name__}: {exc}"
             ) from exc
-        except Exception as exc:
-            # The OpenAI SDK exception hierarchy (NotFoundError, BadRequestError,
-            # AuthenticationError, RateLimitError, etc.) is not part of
-            # litellm.APIError in this litellm version. We catch the base
-            # Exception only to identify OpenAI SDK errors by ancestry and
-            # surface them as the typed provider error. Anything else re-raises
-            # so genuine programming bugs are not silently swallowed.
-            mro_modules = {c.__module__ for c in type(exc).__mro__}
-            if "openai" in mro_modules:
-                raise EmbeddingProviderError(
-                    f"Embedding call failed for {settings.vector_id!r} at {api_base!r}: "
-                    f"{type(exc).__name__}: {exc}"
-                ) from exc
-            raise
 
     if any(v is None for v in vectors):
         if last_exc is not None:

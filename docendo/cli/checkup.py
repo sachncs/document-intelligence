@@ -98,7 +98,7 @@ def tokenizer_load(settings: Settings) -> tuple[bool, str]:
     start = time.perf_counter()
     try:
         ids = chunker.encode("hello world", settings=settings)
-    except Exception as exc:  # tokenizer loads can fail with many library errors
+    except (OSError, RuntimeError, ValueError, TypeError, AttributeError) as exc:
         return False, f"FAIL: tokenizer load: {type(exc).__name__}: {exc}"
     elapsed_ms = (time.perf_counter() - start) * 1000
     if not ids:
@@ -120,7 +120,13 @@ async def embeddings_check(settings: Settings) -> tuple[bool, str]:
     start = time.perf_counter()
     try:
         vecs = await aembed(["ping"], settings=settings)
-    except Exception as exc:  # embeddings check probes the live endpoint
+    except (
+        RuntimeError,
+        OSError,
+        ValueError,
+        TypeError,
+        AttributeError,
+    ) as exc:
         return False, f"FAIL: {type(exc).__name__}: {exc}"
     elapsed_ms = (time.perf_counter() - start) * 1000
     if not vecs or not vecs[0]:
