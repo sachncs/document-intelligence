@@ -26,14 +26,14 @@ test-all:  ## Run all tests
 	$(PYTHON) -m pytest tests -v -m "not perf"
 
 lint:  ## Run ruff linter
-	$(PYTHON) -m ruff check src tests
+	$(PYTHON) -m ruff check docendo tests
 
 format:  ## Format code with ruff
-	$(PYTHON) -m ruff format src tests
-	$(PYTHON) -m ruff check src tests --fix
+	$(PYTHON) -m ruff format docendo tests
+	$(PYTHON) -m ruff check docendo tests --fix
 
 typecheck:  ## Run mypy type checker
-	$(PYTHON) -m mypy src/docendo
+	$(PYTHON) -m mypy docendo
 
 pre-commit:  ## Run all pre-commit hooks
 	$(PYTHON) -m pre_commit run --all-files
