@@ -2,10 +2,14 @@
 
 Fetches the index pages, extracts downloadable PDF links, and downloads
 the files. The site is plain HTML tables - no JS, no auth.
+
+PDF downloads run concurrently under an :class:`asyncio.Semaphore` and
+honour ``Retry-After`` + exponential backoff on HTTP 429/503 responses.
 """
 
 from __future__ import annotations
 
+import asyncio
 import re
 from collections.abc import Iterable
 from dataclasses import dataclass
@@ -26,6 +30,9 @@ BASE = "https://www.rbi.org.in"
 MASTER_DIRECTIONS_INDEX = "https://website.rbi.org.in/web-rules/notifications/master-directions"
 MASTER_CIRCULARS_INDEX = "https://website.rbi.org.in/web-rules/notifications/master-circulars"
 NOTIFICATIONS_INDEX = "https://www.rbi.org.in/Scripts/NotificationUser.aspx"
+
+DEFAULT_DOWNLOAD_CONCURRENCY = 4
+DOWNLOAD_MAX_ATTEMPTS = 3
 
 
 @dataclass(frozen=True)
@@ -139,15 +146,99 @@ def scrape(max_docs: int = 120, settings: Settings | None = None) -> list[Found]
     return unique[:max_docs]
 
 
+def safename(doc: Found) -> str:
+    return re.sub(r"[^A-Za-z0-9._-]+", "_", doc.circular_id)[:80] + ".pdf"
+
+
+async def adownload_one(
+    client: httpx.AsyncClient,
+    doc: Found,
+    target_dir: Path,
+    sem: asyncio.Semaphore,
+) -> Path | None:
+    """Download a single PDF; honour 429/503 with backoff. Returns path or None."""
+    target = target_dir / safename(doc)
+    if target.exists() and target.stat().st_size > 0:
+        return target
+
+    async with sem:
+        last_exc: httpx.HTTPError | None = None
+        for attempt in range(DOWNLOAD_MAX_ATTEMPTS):
+            try:
+                response = await client.send(
+                    client.build_request("GET", doc.pdf_url),
+                    stream=True,
+                )
+            except httpx.HTTPError as exc:
+                last_exc = exc
+                await asyncio.sleep(0.5 * (2**attempt))
+                continue
+            if response.status_code in (429, 503):
+                retry_after = float(response.headers.get("Retry-After", 1.0))
+                await response.aclose()
+                await asyncio.sleep(retry_after * (2**attempt))
+                continue
+            try:
+                response.raise_for_status()
+            except httpx.HTTPError as exc:
+                last_exc = exc
+                await response.aclose()
+                await asyncio.sleep(0.5 * (2**attempt))
+                continue
+            try:
+                target.parent.mkdir(parents=True, exist_ok=True)
+                with target.open("wb") as fh:
+                    async for chunk in response.aiter_bytes():
+                        fh.write(chunk)
+            finally:
+                await response.aclose()
+            return target
+        logger.warning(
+            "Skipping %s after %d attempts: %s",
+            doc.pdf_url,
+            DOWNLOAD_MAX_ATTEMPTS,
+            last_exc,
+        )
+        return None
+
+
+async def adownload_all(
+    docs: list[Found],
+    target_dir: Path,
+    settings: Settings,
+    concurrency: int,
+) -> list[tuple[Found, Path]]:
+    """Concurrent bounded download helper."""
+    sem = asyncio.Semaphore(concurrency)
+    headers = {"User-Agent": "docendo/0.3 (+research; not for production compliance)"}
+    async with httpx.AsyncClient(
+        timeout=settings.http_timeout,
+        headers=headers,
+        follow_redirects=True,
+    ) as client:
+        results = await asyncio.gather(
+            *(adownload_one(client, doc, target_dir, sem) for doc in docs)
+        )
+    out: list[tuple[Found, Path]] = []
+    for doc, path in zip(docs, results, strict=True):
+        if path is not None:
+            out.append((doc, path))
+    return out
+
+
 def download(
     doc: Found, target_dir: Path, settings: Settings | None = None
 ) -> Path:
-    """Download a PDF document to ``target_dir`` if absent."""
+    """Synchronous wrapper around the async download helper.
+
+    Public callers still get a single (doc, path) signature; concurrent
+    discovery uses :func:`discover`.
+    """
     settings = settings or get_settings()
     target_dir = Path(target_dir)
     target_dir.mkdir(parents=True, exist_ok=True)
 
-    safe_name = re.sub(r"[^A-Za-z0-9._-]+", "_", doc.circular_id)[:80] + ".pdf"
+    safe_name = safename(doc)
     target = target_dir / safe_name
     if target.exists() and target.stat().st_size > 0:
         return target
@@ -175,19 +266,28 @@ def discover(
     target_dir: Path,
     max_docs: int = 120,
     settings: Settings | None = None,
+    concurrency: int = DEFAULT_DOWNLOAD_CONCURRENCY,
 ) -> Iterable[tuple[Found, Path]]:
-    """Discover PDF links, download them, and yield (doc, path)."""
+    """Discover PDF links, download them, and yield (doc, path).
+
+    PDFs are fetched concurrently under an asyncio semaphore so a single
+    slow URL does not stall the run; HTTP 429 and 503 responses are
+    retried with exponential backoff + Retry-After.
+    """
+    settings = settings or get_settings()
+    target_dir = Path(target_dir)
+    target_dir.mkdir(parents=True, exist_ok=True)
+
     docs = scrape(max_docs=max_docs, settings=settings)
-    for doc in docs:
-        try:
-            path = download(doc, target_dir, settings=settings)
-        except ScrapingError as exc:
-            logger.warning("Skipping %s: %s", doc.pdf_url, exc)
-            continue
-        yield doc, path
+    if not docs:
+        return iter([])
+
+    results = asyncio.run(adownload_all(docs, target_dir, settings, concurrency))
+    return iter(results)
 
 
 __all__ = [
+    "DEFAULT_DOWNLOAD_CONCURRENCY",
     "Direction",
     "Found",
     "discover",
