@@ -16,7 +16,7 @@ import math
 from collections import OrderedDict
 from typing import Any
 
-import litellm  # type: ignore[import-untyped]
+import litellm
 
 from docendo.config import Settings, get_settings
 from docendo.exceptions import EmbeddingProviderError
@@ -100,7 +100,7 @@ async def aembed(
             uncached_idx.append(i)
 
     if not uncached_idx:
-        return [v if v is not None else [] for v in vectors]  # type: ignore[misc]
+        return [v if v is not None else [] for v in vectors]
 
     last_exc: BaseException | None = None
     for attempt in range(3):
