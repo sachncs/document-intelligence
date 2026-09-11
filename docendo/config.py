@@ -10,7 +10,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, Literal
 
-import litellm  # type: ignore[import-untyped]
+import litellm
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
