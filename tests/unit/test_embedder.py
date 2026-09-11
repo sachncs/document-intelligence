@@ -6,22 +6,16 @@ import asyncio
 from unittest.mock import patch
 
 import pytest
-from docendo.config import reset_settings_cache
 from docendo.exceptions import EmbeddingProviderError
 from docendo.retrieval import embedder
 
 
 @pytest.fixture(autouse=True)
-def _env(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("VECTOR_KEY", "test")
-    monkeypatch.setenv("VECTOR_BASE", "https://embed.example.com")
-    monkeypatch.setenv("VECTOR_MODEL", "Qwen/Qwen3-Embedding-8B")
-    monkeypatch.setenv("VECTOR_DIMS", "4")
-    reset_settings_cache()
+def _reset_embedder_cache() -> None:
+    """Clear the in-memory embedding cache between tests."""
     embedder.reset()
     yield
     embedder.reset()
-    reset_settings_cache()
 
 
 class TestCache:
@@ -119,7 +113,6 @@ class TestErrors:
         attempt.
         """
         import litellm  # type: ignore[import-untyped]
-
         from docendo.exceptions import EmbeddingProviderError
 
         async def _always_fail(*args, **kwargs):
