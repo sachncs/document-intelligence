@@ -5,7 +5,7 @@ Contributions are welcome. Please open an issue first to discuss substantial cha
 ## Development setup
 
 ```bash
-git clone https://github.com/sachin/docendo
+git clone https://github.com/sachncs/document-intelligence
 cd docendo
 pip install -e ".[dev]"
 pre-commit install
