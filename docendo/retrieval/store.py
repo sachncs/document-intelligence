@@ -62,12 +62,18 @@ def fts_escape(query: str) -> str:
     return '"' + query.replace('"', '""') + '"'
 
 
-def from_row(row: sqlite3.Row) -> Hit:
-    """Build a Hit from a sqlite3.Row (named access)."""
+def from_row(row: sqlite3.Row, chunk_max_chars: int) -> Hit:
+    """Build a Hit from a sqlite3.Row (named access).
+
+    ``chunk_max_chars`` is passed in by the owning :class:`Store` rather
+    than read from the global :func:`get_settings` cache, so row
+    decoding stays pure with respect to its inputs and is safe to call
+    from any thread.
+    """
     return Hit(
         circular_id=row["circular_id"],
         title=row["title"],
-        text=row["text"][: get_settings().chunk_max_chars],
+        text=row["text"][:chunk_max_chars],
         chunk_index=row["chunk_index"],
         chunk_count=row["chunk_count"],
         issue_date=row["issue_date"],
@@ -86,6 +92,7 @@ class Store:
         self.settings = settings or get_settings()
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
+        self.chunk_max_chars = self.settings.chunk_max_chars
 
         # Per-instance lock; writes are serialized.
         self._lock = threading.Lock()
@@ -310,7 +317,7 @@ class Store:
         hits: list[Hit] = []
         for rowid, score in ranked:
             row = meta[rowid]
-            hit = from_row(row)
+            hit = from_row(row, self.chunk_max_chars)
             hit = hit.model_copy(update={"score": score})
             hits.append(hit)
         return Results(query=query, hits=hits)
@@ -393,7 +400,7 @@ class Store:
                 """,
                 (circular_id,),
             ).fetchall()
-        chunks = [from_row(r) for r in rows]
+        chunks = [from_row(r, self.chunk_max_chars) for r in rows]
         return Document(
             circular_id=meta_row["circular_id"],
             title=meta_row["title"],

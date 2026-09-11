@@ -423,3 +423,41 @@ class TestChunkerWiring:
         )
         assert len(chunks) >= 1
         assert all(isinstance(c, str) for c in chunks)
+
+
+class TestFromRowGlobal:
+    """from_row must read chunk_max_chars from the owning Store, not get_settings."""
+
+    @staticmethod
+    def _make_row(text: str) -> sqlite3.Row:
+        conn = sqlite3.connect(":memory:")
+        conn.row_factory = sqlite3.Row
+        conn.execute(
+            "CREATE TABLE t (circular_id TEXT, title TEXT, text TEXT, "
+            "chunk_index INTEGER, chunk_count INTEGER, issue_date TEXT, "
+            "topic TEXT, source_url TEXT, page_estimate_start INTEGER, "
+            "page_estimate_end INTEGER, extraction_method TEXT)"
+        )
+        conn.execute(
+            "INSERT INTO t VALUES (?, ?, ?, 0, 1, NULL, NULL, "
+            "?, 1, 1, 'text')",
+            ("A", "T", text, "https://rbi.org.in/A"),
+        )
+        row = conn.execute("SELECT * FROM t").fetchone()
+        conn.close()
+        return row
+
+    def test_from_row_uses_passed_chunk_max_chars(self, _tmp_db: Path) -> None:
+        from docendo.retrieval.store import from_row
+
+        row = self._make_row("0123456789abcdef")
+        hit = from_row(row, 10)
+        assert hit.text == "0123456789"
+
+    def test_from_row_respects_different_chunk_max_chars(self, _tmp_db: Path) -> None:
+        """Caller-supplied chunk_max_chars wins over any cached Settings."""
+        from docendo.retrieval.store import from_row
+
+        row = self._make_row("x" * 50)
+        assert from_row(row, 7).text == "x" * 7
+        assert from_row(row, 50).text == "x" * 50
