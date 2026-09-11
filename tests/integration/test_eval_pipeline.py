@@ -106,3 +106,60 @@ class TestReportGeneration:
             data = json.loads(line)
             assert "claims" in data["grounded_hallucination"]
             assert "claims" in data["ungrounded_hallucination"]
+
+
+class TestBoundedConcurrency:
+    def test_run_bounded_caps_in_flight_workers(self) -> None:
+        """run_bounded uses at most `concurrency` worker coroutines at a time."""
+        import asyncio
+
+        from docendo.config import Settings
+        from docendo.eval.driver import run_bounded
+        from docendo.eval.cases import Case
+
+        in_flight = 0
+        peak = 0
+
+        async def fake_run_case(case: Case, settings: Settings):  # type: ignore[no-untyped-def]
+            nonlocal in_flight, peak
+            in_flight += 1
+            peak = max(peak, in_flight)
+            try:
+                await asyncio.sleep(0.01)
+            finally:
+                in_flight -= 1
+            return Outcome(
+                case_name=case.name,
+                question=case.inputs,
+                gold_answer=case.expected_output,
+                metadata=case.metadata,
+            )
+
+        settings = Settings(chat_key="x", vector_key="x", vector_base="https://x")
+        cases = [
+            Case(
+                name=f"c{i}",
+                inputs=f"q{i}",
+                expected_output=f"a{i}",
+                metadata={"topic": "t"},
+            )
+            for i in range(20)
+        ]
+        # Patch the module-level run_case so we don't need real agents.
+        from docendo.eval import driver as driver_module
+
+        original = driver_module.run_case
+        driver_module.run_case = fake_run_case  # type: ignore[assignment]
+        try:
+            run_bounded(cases, concurrency=3, settings=settings)
+        finally:
+            driver_module.run_case = original  # type: ignore[assignment]
+        assert peak <= 3, f"expected <= 3 in-flight, saw {peak}"
+        assert peak >= 2, "expected some overlap"
+
+    def test_run_bounded_empty_returns_empty(self) -> None:
+        from docendo.config import Settings
+        from docendo.eval.driver import run_bounded
+
+        settings = Settings(chat_key="x", vector_key="x", vector_base="https://x")
+        assert run_bounded([], concurrency=4, settings=settings) == []
