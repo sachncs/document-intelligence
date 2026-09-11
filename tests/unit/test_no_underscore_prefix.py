@@ -1,9 +1,9 @@
-"""CI guard: no `_` prefix on module/class scope identifiers in src/.
+"""CI guard: no `_` prefix on module/class scope identifiers in docendo/.
 
 The project rule: every public symbol is a single word with no underscore.
 Private symbols are signaled by *location* (module name, class scope) — not
 by a leading underscore on the identifier itself. The only accepted
-underscore identifiers in src/ are:
+underscore identifiers in docendo/ are:
 
 - Dunder names: `__init__`, `__aenter__`, `__aexit__`, `__contains__`,
   `__repr__`, `__str__`, `__dict__`, etc.
@@ -141,14 +141,14 @@ def _walk_identifier_violations(tree: ast.AST, source_path: Path) -> list[str]:
 
 
 def test_no_underscore_prefix_in_src() -> None:
-    """All module/class-scope identifiers in src/docendo/ must be underscore-free.
+    """All module/class-scope identifiers in docendo/ must be underscore-free.
 
     Allowed: dunder (`__init__`, etc.), the `_internal.py` module name, and
     `instance attributes` (e.g., `self._lock`, `self._conn`).
     """
-    src = Path("src/docendo")
+    src = Path("docendo")
     if not src.exists():
-        pytest.skip("src/docendo not present")
+        pytest.skip("docendo not present")
 
     all_violations: list[str] = []
     for path in sorted(src.rglob("*.py")):
@@ -164,7 +164,7 @@ def test_no_underscore_prefix_in_src() -> None:
         all_violations.extend(_walk_identifier_violations(tree, path))
 
     assert not all_violations, (
-        "Underscore-prefixed identifiers at module/class scope in src/docendo/:\n"
+        "Underscore-prefixed identifiers at module/class scope in docendo/:\n"
         + "\n".join(f"  {v}" for v in all_violations)
         + "\n\nRename these to single-word, no-underscore names. The project rule:\n"
         "single-word public names; privacy is signaled by *location* (module name,\n"
