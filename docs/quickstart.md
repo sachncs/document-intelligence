@@ -14,7 +14,7 @@
 ## 1. Install
 
 ```bash
-git clone https://github.com/sachin/docendo
+git clone https://github.com/sachncs/document-intelligence
 cd docendo
 pip install -e .
 ```

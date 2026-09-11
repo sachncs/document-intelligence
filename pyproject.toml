@@ -73,10 +73,10 @@ dev = [
 docendo = "docendo.cli.main:app"
 
 [project.urls]
-Homepage = "https://github.com/sachin/docendo"
-Documentation = "https://sachin.github.io/docendo"
-Repository = "https://github.com/sachin/docendo"
-Issues = "https://github.com/sachin/docendo/issues"
+Homepage = "https://github.com/sachncs/document-intelligence"
+Documentation = "https://sachncs.github.io/document-intelligence/"
+Repository = "https://github.com/sachncs/document-intelligence"
+Issues = "https://github.com/sachncs/document-intelligence/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["docendo"]
