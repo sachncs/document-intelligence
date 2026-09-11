@@ -130,3 +130,61 @@ class TestConcurrency:
                 many()
         finally:
             store.close()
+
+    def test_parallel_reads_use_distinct_connections(self, _tmp_db: Path) -> None:
+        """Read methods do not acquire _lock and rely on per-thread connections."""
+        from unittest.mock import patch
+
+        from docendo.retrieval import embedder
+
+        store = Store(_tmp_db)
+        try:
+            store.ensure_schema()
+            for i in range(3):
+                store.upsert_chunks(
+                    f"P{i}", [_record(f"P{i}", f"kyc rule {i}", f"h{i}")]
+                )
+
+            with patch.object(
+                embedder,
+                "aembed",
+                side_effect=lambda texts, *, settings=None: [
+                    _fake_embed(texts)[0] if texts else []
+                ],
+            ):
+                tls_conns: set[int] = set()
+                lock_acquired = 0
+                real_lock = store._lock  # type: ignore[attr-defined]
+
+                class CountingLock:
+                    def __enter__(self_inner) -> None:  # noqa: N805
+                        nonlocal lock_acquired
+                        lock_acquired += 1
+                        real_lock.acquire()
+
+                    def __exit__(self_inner, *exc: object) -> None:
+                        real_lock.release()
+
+                store._lock = CountingLock()  # type: ignore[attr-defined]
+                try:
+
+                    def reader_thread() -> None:
+                        store.hybrid_search("kyc", 5)
+                        store.fetch("P0")
+                        store.list_recent("2023-01-01")
+                        tls_conns.add(id(store.readconn()))
+
+                    threads = [threading.Thread(target=reader_thread) for _ in range(4)]
+                    for t in threads:
+                        t.start()
+                    for t in threads:
+                        t.join(timeout=10)
+                        assert not t.is_alive()
+                    # Each thread has its own per-thread connection.
+                    assert len(tls_conns) == 4
+                    # None of the read paths acquired the lock.
+                    assert lock_acquired == 0
+                finally:
+                    store._lock = real_lock  # type: ignore[attr-defined]
+        finally:
+            store.close()

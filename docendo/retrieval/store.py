@@ -2,7 +2,10 @@
 
 One :class:`Store` instance is created per process per ``Settings.store_path``.
 Connections are not shared across threads; the store serializes writes with a
-per-instance lock. WAL allows concurrent readers.
+per-instance lock and relies on SQLite WAL for concurrent readers, so read
+methods (``lex``, ``vec``, ``fetch``, ``list_recent``) do not acquire the
+lock. Write methods (``upsert_chunks``, ``ensure_schema``, ``optimize``,
+``close``) do.
 
 Schema:
 - ``chunks``: regular table with one row per chunk; embedding stored as BLOB.
@@ -95,8 +98,11 @@ class Store:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.chunk_max_chars = self.settings.chunk_max_chars
 
-        # Per-instance lock; writes are serialized.
+        # Per-instance lock; writes are serialized. Reads use a
+        # thread-local connection so WAL's concurrent-readers benefit is
+        # actually realised instead of serialising through one mutex.
         self._lock = threading.Lock()
+        self._tls = threading.local()
 
         # Single connection for this instance; check_same_thread=False so
         # the write lock around mutating calls keeps us safe under async.
@@ -122,6 +128,21 @@ class Store:
             c.load_extension(str(ext_path))
         finally:
             c.enable_load_extension(False)
+
+    def setup_connection_on(self, conn: sqlite3.Connection) -> None:
+        """Apply PRAGMA + extension loading to a per-thread read connection."""
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA synchronous=NORMAL")
+        conn.execute("PRAGMA cache_size=-65536")
+        conn.execute("PRAGMA mmap_size=268435456")
+        conn.execute("PRAGMA temp_store=MEMORY")
+        conn.execute("PRAGMA busy_timeout=5000")
+        ext_path = importlib.resources.files("sqlite_vector.binaries") / "vector"
+        conn.enable_load_extension(True)
+        try:
+            conn.load_extension(str(ext_path))
+        finally:
+            conn.enable_load_extension(False)
 
     # ------------------------------------------------------------------
     # Schema management
@@ -323,6 +344,38 @@ class Store:
             hits.append(hit)
         return Results(query=query, hits=hits)
 
+    def readconn(self) -> sqlite3.Connection:
+        """Per-thread read connection. WAL allows concurrent readers.
+
+        The sqliteai-vector context (set up by ``vector_init`` on the
+        primary connection) is mirrored onto every fresh read connection
+        so ``vector_full_scan`` can resolve the registered column.
+        """
+        conn = getattr(self._tls, "conn", None)
+        if conn is None:
+            conn = sqlite3.connect(
+                str(self.path),
+                check_same_thread=False,
+                detect_types=sqlite3.PARSE_DECLTYPES,
+            )
+            conn.row_factory = sqlite3.Row
+            self.setup_connection_on(conn)
+            self.init_vector_on(conn)
+            self._tls.conn = conn
+        return conn
+
+    def init_vector_on(self, conn: sqlite3.Connection) -> None:
+        """Mirror the primary connection's vector_init into a new read connection."""
+        dims = self.settings.vector_dims
+        conn.execute(
+            "SELECT vector_init(?, ?, ?)",
+            (
+                "chunks",
+                "embedding",
+                f"type=FLOAT32,dimension={dims},distance=COSINE",
+            ),
+        )
+
     def lex(self, fts_query: str, k: int) -> list[sqlite3.Row]:
         sql = """
         SELECT c.id, c.circular_id, c.title, c.text, c.issue_date, c.topic,
@@ -335,8 +388,7 @@ class Store:
         ORDER BY rank_score ASC
         LIMIT ?
         """
-        with self._lock:
-            return list(self._conn.execute(sql, (fts_query, k)).fetchall())
+        return list(self.readconn().execute(sql, (fts_query, k)).fetchall())
 
     async def avec(self, query: str) -> list[list[float]]:
         """Embed ``query`` via the configured embedding endpoint."""
@@ -360,34 +412,33 @@ class Store:
         ORDER BY v.distance ASC
         LIMIT ?
         """
-        with self._lock:
-            return list(self._conn.execute(sql, (blob, k, k)).fetchall())
+        return list(self.readconn().execute(sql, (blob, k, k)).fetchall())
 
     def fetch(self, circular_id: str) -> Document | None:
-        with self._lock:
-            meta_row = self._conn.execute(
-                """
-                SELECT circular_id, title, issue_date, topic, source_url
-                FROM chunks
-                WHERE circular_id = ?
-                ORDER BY chunk_index ASC
-                LIMIT 1
-                """,
-                (circular_id,),
-            ).fetchone()
-            if meta_row is None:
-                return None
-            rows = self._conn.execute(
-                """
-                SELECT id, circular_id, title, text, issue_date, topic,
-                       source_url, chunk_index, chunk_count,
-                       page_estimate_start, page_estimate_end, extraction_method
-                FROM chunks
-                WHERE circular_id = ?
-                ORDER BY chunk_index ASC
-                """,
-                (circular_id,),
-            ).fetchall()
+        conn = self.readconn()
+        meta_row = conn.execute(
+            """
+            SELECT circular_id, title, issue_date, topic, source_url
+            FROM chunks
+            WHERE circular_id = ?
+            ORDER BY chunk_index ASC
+            LIMIT 1
+            """,
+            (circular_id,),
+        ).fetchone()
+        if meta_row is None:
+            return None
+        rows = conn.execute(
+            """
+            SELECT id, circular_id, title, text, issue_date, topic,
+                   source_url, chunk_index, chunk_count,
+                   page_estimate_start, page_estimate_end, extraction_method
+            FROM chunks
+            WHERE circular_id = ?
+            ORDER BY chunk_index ASC
+            """,
+            (circular_id,),
+        ).fetchall()
         chunks = [from_row(r, self.chunk_max_chars) for r in rows]
         return Document(
             circular_id=meta_row["circular_id"],
@@ -416,8 +467,7 @@ class Store:
         LIMIT ?
         """
         params = (*params, limit)
-        with self._lock:
-            rows = self._conn.execute(sql, params).fetchall()
+        rows = self.readconn().execute(sql, params).fetchall()
         return [
             Listing(
                 circular_id=r["circular_id"],
