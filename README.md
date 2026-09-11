@@ -5,29 +5,46 @@
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![CI](https://github.com/sachncs/document-intelligence/actions/workflows/ci.yml/badge.svg)](https://github.com/sachncs/document-intelligence/actions/workflows/ci.yml)
+[![Docs](https://img.shields.io/badge/docs-sachncs.github.io-blue)](https://sachncs.github.io/document-intelligence/)
+
+## Why
+
+Generic LLMs hallucinate on RBI circulars. For BFSI compliance, fintech legal,
+and Indian regulatory research, that is a blocker. **docendo** answers
+questions about RBI circulars only from the cited corpus, with measured
+hallucination rates against an ungrounded baseline.
 
 ## What it does
 
 Answer questions about RBI (Reserve Bank of India) circulars, master
 directions, and policy documents with:
 
-- **Hybrid search** (BM25 + cosine-similarity vector) over a local SQLite database.
-- **Citation-grounded answers** — every claim is backed by a cited circular.
-- **Measured hallucination rate** — side-by-side comparison against an ungrounded LLM baseline using atomic-claim LLM-as-judge.
+- **Citation-grounded answers** — every claim cites a circular (`circular_id`,
+  excerpt, source URL, relevance justification).
+- **Measured hallucination rate** — atomic-claim LLM-as-judge compares
+  against an ungrounded baseline on a hand-curated 40-pair gold dataset.
+- **Local-first storage** — SQLite + FTS5 + sqlite-vector; no managed
+  vector DB, no Elasticsearch, no network egress for retrieval.
+
+## Limitations
+
+`docendo` is an alpha release. See [KNOWN_GAPS.md](KNOWN_GAPS.md) for
+deferred items, including: no production HTTPS host, no MCP server,
+`rrf_k` not exposed as a CLI flag, Alpine / musl and Windows ARM not
+supported.
 
 ## Architecture
 
-```
-RBI PDFs → pypdf / vision → gigatoken chunk → LiteLLM embed (Qwen3)
-                                            ↓
-                          SQLite + FTS5 + sqlite-vector
-                          (data/processed/docendo.sqlite3)
-                                            ↓
-                  Pydantic AI Agent (MiniMax-M3) + four direct tools
-                                            ↓
-                              Structured Answer
-                                            ↓
-                            Streamlit A/B Chat UI
+```mermaid
+flowchart TD
+    A[RBI PDFs] --> B[pypdf / vision extract]
+    B --> C[gigatoken chunk]
+    C --> D[LiteLLM embed Qwen3]
+    D --> E[(SQLite + FTS5 + sqlite-vector)]
+    E --> F[Pydantic AI Agent\nMiniMax-M3 + four direct tools]
+    F --> G[Structured Answer\nwith citations]
+    G --> H[Streamlit A/B Chat UI]
 ```
 
 The four retrieval tools are direct Python functions registered with the
@@ -56,14 +73,17 @@ docendo demo
 
 ## Evaluation
 
-40 gold Q/A pairs measured against an ungrounded baseline:
+40 gold Q/A pairs measured against an ungrounded baseline. To populate
+this table for your corpus, run:
 
-| Backend | Ungrounded hallu. | Grounded hallu. | Reduction |
-|---|---|---|---|
-| **SQLite (local-only)** | _TBD_ | _TBD_ | _TBD_ |
+```bash
+docendo eval --limit 40
+docendo report reports/results.jsonl
+```
 
-_Numbers populated after the first `docendo eval` run. See
-`reports/eval_report.md`._
+The report is written to `reports/eval_report.md`; the README does not
+ship a checked-in row because the metric depends on the model and
+corpus under test.
 
 ## Documentation
 
@@ -86,9 +106,9 @@ pytest tests/unit                                              # unit tests
 pytest tests/integration -m "not perf"                         # offline integration
 RUN_PERF=1 pytest tests/perf                                  # benchmarks
 docendo checkup --no-embedding --no-tokenizer                 # offline diagnostics
-ruff check src tests                                          # lint
-ruff format src tests                                         # format
-mypy src/docendo                                             # type check
+ruff check docendo tests                                       # lint
+ruff format docendo tests                                      # format
+mypy docendo                                                  # type check
 ```
 
 ## License
