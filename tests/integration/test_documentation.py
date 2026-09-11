@@ -5,7 +5,6 @@ from __future__ import annotations
 from pathlib import Path
 
 from docendo.cli.main import app
-from docendo.config import reset_settings_cache
 from typer.testing import CliRunner
 
 
@@ -40,22 +39,11 @@ class TestDocsStructure:
 
 
 class TestReadmeQuickstartEnd2End:
-    def test_docendo_checkup_offline_works(self, tmp_path, monkeypatch) -> None:
+    def test_docendo_checkup_offline_works(self) -> None:
         """The README's 'docendo checkup --no-embedding --no-tokenizer' runs."""
-        monkeypatch.setenv("STORE_PATH", str(tmp_path / "docendo.sqlite3"))
-        monkeypatch.setenv("VECTOR_KEY", "test")
-        monkeypatch.setenv("VECTOR_BASE", "https://embed.example.com")
-        monkeypatch.setenv("VECTOR_MODEL", "Qwen/Qwen3-Embedding-8B")
-        monkeypatch.setenv("TOKENIZER_MODEL", "Qwen/Qwen3-Embedding-8B")
-        monkeypatch.setenv("VECTOR_DIMS", "4")
-        monkeypatch.setenv("CHAT_KEY", "test")
-        reset_settings_cache()
-        try:
-            runner = CliRunner()
-            result = runner.invoke(
-                app, ["checkup", "--no-embedding", "--no-tokenizer"]
-            )
-            assert result.exit_code == 0
-            assert "All checks passed" in result.stdout
-        finally:
-            reset_settings_cache()
+        runner = CliRunner()
+        result = runner.invoke(
+            app, ["checkup", "--no-embedding", "--no-tokenizer"]
+        )
+        assert result.exit_code == 0
+        assert "All checks passed" in result.stdout

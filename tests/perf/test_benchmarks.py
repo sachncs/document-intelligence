@@ -19,8 +19,6 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-from docendo.config import reset_settings_cache
-from docendo.retrieval._internal import reset as reset_internal
 from docendo.retrieval.store import Store
 
 DIMS = 8
@@ -97,19 +95,8 @@ def _maybe_write_perf_report(name: str, payload: dict) -> None:
 
 
 @pytest.fixture
-def _tmp_db(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
-    db = tmp_path / "docendo.sqlite3"
-    monkeypatch.setenv("STORE_PATH", str(db))
-    monkeypatch.setenv("VECTOR_DIMS", str(DIMS))
-    monkeypatch.setenv("VECTOR_KEY", "test-key")
-    monkeypatch.setenv("VECTOR_BASE", "https://embed.example.com")
-    monkeypatch.setenv("VECTOR_MODEL", "Qwen/Qwen3-Embedding-8B")
-    monkeypatch.setenv("TOKENIZER_MODEL", "Qwen/Qwen3-Embedding-8B")
-    reset_settings_cache()
-    reset_internal()
-    yield db
-    reset_internal()
-    reset_settings_cache()
+def _tmp_db(tmp_path: Path):
+    return tmp_path / "docendo.sqlite3"
 
 
 @pytest.mark.perf

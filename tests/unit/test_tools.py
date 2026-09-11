@@ -12,9 +12,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-from docendo.config import reset_settings_cache
 from docendo.retrieval import embedder
-from docendo.retrieval._internal import reset as reset_internal
 from docendo.retrieval.record import ChunkRecord
 from docendo.retrieval.store import Store
 from pydantic import HttpUrl
@@ -41,19 +39,8 @@ def _record(circ: str, text: str, embedding: list[float]) -> ChunkRecord:
 
 
 @pytest.fixture
-def _tmp_db(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
-    db = tmp_path / "docendo.sqlite3"
-    monkeypatch.setenv("STORE_PATH", str(db))
-    monkeypatch.setenv("VECTOR_DIMS", str(DIMS))
-    monkeypatch.setenv("VECTOR_KEY", "test")
-    monkeypatch.setenv("VECTOR_BASE", "https://embed.example.com")
-    monkeypatch.setenv("VECTOR_MODEL", "Qwen/Qwen3-Embedding-8B")
-    monkeypatch.setenv("TOKENIZER_MODEL", "Qwen/Qwen3-Embedding-8B")
-    reset_settings_cache()
-    reset_internal()
-    yield db
-    reset_internal()
-    reset_settings_cache()
+def _tmp_db(tmp_path: Path):
+    return tmp_path / "docendo.sqlite3"
 
 
 class TestSearchTool:
