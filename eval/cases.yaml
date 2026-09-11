@@ -1,4 +1,4 @@
-# BFSI-RBI Evaluation Dataset
+# docendo evaluation dataset
 # 40 hand-curated Q/A pairs sourced from RBI Master Directions and official FAQs.
 # Topics: factual | procedural | cross_circular | date_bounded | trap
 # Each `expected_output` is the gold answer the LLM judge compares against.
