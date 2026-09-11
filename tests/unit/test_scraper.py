@@ -6,21 +6,7 @@ import time
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
-from docendo.config import reset_settings_cache
 from docendo.ingestion import scraper
-
-
-@pytest.fixture(autouse=True)
-def _env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("STORE_PATH", str(tmp_path / "docendo.sqlite3"))
-    monkeypatch.setenv("VECTOR_KEY", "test")
-    monkeypatch.setenv("VECTOR_BASE", "https://embed.example.com")
-    monkeypatch.setenv("VECTOR_MODEL", "Qwen/Qwen3-Embedding-8B")
-    monkeypatch.setenv("TOKENIZER_MODEL", "Qwen/Qwen3-Embedding-8B")
-    monkeypatch.setenv("VECTOR_DIMS", "4")
-    monkeypatch.setenv("CHAT_KEY", "test")
-    reset_settings_cache()
 
 
 def _fake_doc(idx: int) -> scraper.Found:
@@ -106,7 +92,6 @@ class TestDiscoverConcurrency:
 class TestRetryAfter:
     def test_429_triggers_retry_then_succeeds(self, tmp_path: Path) -> None:
         """A 429 with Retry-After is retried until a 200 response arrives."""
-        import asyncio
 
         docs = [_fake_doc(0)]
         attempts = {"n": 0}
