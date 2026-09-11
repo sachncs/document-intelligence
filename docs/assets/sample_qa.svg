@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 360" width="720" height="360" font-family="Helvetica, Arial, sans-serif">
+  <style>
+    .title { font-size: 16px; font-weight: 700; fill: #1f2933; }
+    .panel-title { font-size: 13px; font-weight: 700; fill: #1f2933; }
+    .header { font-size: 12px; font-weight: 600; fill: #52606d; }
+    .body { font-size: 11px; fill: #3e4c59; }
+    .citation { font-size: 10px; fill: #2563eb; }
+    .meta { font-size: 10px; fill: #6b7785; }
+    .border { fill: none; stroke: #cbd2d9; stroke-width: 1; }
+    .grn { fill: #e6fffa; stroke: #38b2ac; stroke-width: 1; }
+    .red { fill: #fff5f5; stroke: #e53e3e; stroke-width: 1; }
+    .pill { fill: #e4e7eb; }
+  </style>
+  <rect class="border" x="0.5" y="0.5" width="719" height="359" />
+  <text class="title" x="20" y="30">docendo A/B Demo</text>
+  <text class="meta" x="20" y="48">Question: What is the KYC threshold for cash transactions?</text>
+
+  <g transform="translate(20, 70)">
+    <rect class="grn" x="0" y="0" width="330" height="270" rx="6" />
+    <text class="panel-title" x="14" y="22">Grounded</text>
+    <text class="body" x="14" y="48">INR 50,000 for cash transactions.</text>
+    <text class="body" x="14" y="68">Per PMLA master direction, banks must</text>
+    <text class="body" x="14" y="84">verify identity for any cash txn ≥ 50k.</text>
+
+    <text class="header" x="14" y="120">Citations</text>
+    <text class="citation" x="14" y="138">▸ RBI/2023-24/1 — KYC Master Direction</text>
+    <text class="meta" x="14" y="154">  "cash transactions exceeding fifty</text>
+    <text class="meta" x="14" y="168">  thousand rupees require full KYC"</text>
+    <text class="citation" x="14" y="190">▸ RBI/2017-18/42 — PMLA clarifications</text>
+
+    <rect class="pill" x="14" y="210" width="120" height="22" rx="4" />
+    <text class="meta" x="22" y="225">Confidence: high</text>
+    <rect class="pill" x="14" y="238" width="200" height="22" rx="4" />
+    <text class="meta" x="22" y="253">Hallucination: 0% (0/3 claims)</text>
+  </g>
+
+  <g transform="translate(370, 70)">
+    <rect class="red" x="0" y="0" width="330" height="270" rx="6" />
+    <text class="panel-title" x="14" y="22">Ungrounded</text>
+    <text class="body" x="14" y="48">INR 10,000 for cash transactions.</text>
+    <text class="body" x="14" y="68">All banks must collect PAN and ID</text>
+    <text class="body" x="14" y="84">proof for any deposit above ten thousand.</text>
+
+    <text class="header" x="14" y="120" fill="#9b2c2c">Citations</text>
+    <text class="meta" x="14" y="138">  (none — model invented threshold)</text>
+
+    <rect class="pill" x="14" y="210" width="120" height="22" rx="4" />
+    <text class="meta" x="22" y="225">Confidence: medium</text>
+    <rect class="pill" x="14" y="238" width="220" height="22" rx="4" />
+    <text class="meta" x="22" y="253">Hallucination: 67% (2/3 claims)</text>
+  </g>
+</svg>

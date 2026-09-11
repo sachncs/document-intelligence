@@ -2,6 +2,19 @@
 
 ## Diagram
 
+```mermaid
+flowchart TD
+    A[RBI PDFs] --> B[pypdf / vision-extract]
+    B --> C[gigatoken chunk]
+    C --> D[LiteLLM embed Qwen3]
+    D --> E[(SQLite + FTS5 + sqlite-vector<br/>data/processed/docendo.sqlite3)]
+    E --> F[Pydantic AI Agent<br/>MiniMax-M3 + four direct tools]
+    F --> G[Structured Answer<br/>with citations]
+    G --> H[Streamlit A/B Chat UI]
+```
+
+ASCII version (for terminals / plain-text renderers):
+
 ```
 RBI PDFs ── pypdf/vision-extract ── gigatoken chunk ── LiteLLM embed (Qwen3)
                                           │
@@ -13,7 +26,7 @@ RBI PDFs ── pypdf/vision-extract ── gigatoken chunk ── LiteLLM embed
                   Pydantic AI Agent (MiniMax-M3) + four direct tools
                                           │
                                           ▼
-                              Structured RBIAnswer
+                              Structured Answer with citations
                                           │
                                           ▼
                             Streamlit A/B Chat UI
