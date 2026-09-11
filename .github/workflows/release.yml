@@ -7,6 +7,8 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -23,3 +25,24 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           password: ${{ secrets.PYPI_TOKEN }}
+      - name: Extract CHANGELOG section for release body
+        id: changelog
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import os, re, sys
+          tag = os.environ.get("GITHUB_REF_NAME", "").lstrip("v")
+          text = open("CHANGELOG.md", encoding="utf-8").read()
+          pattern = re.compile(r"^## \[(?P<v>[^\]]+)\][^\n]*\n(?P<body>.*?)(?=^## |\Z)",
+                               re.MULTILINE | re.DOTALL)
+          match = next((m for m in pattern.finditer(text) if m.group("v") == tag), None)
+          body = (match.group("body").strip() if match else f"Release {tag}.") + "\n"
+          with os.fdopen(3, "w", encoding="utf-8") as fh:
+              fh.write(body)
+          PY 3>/tmp/release_body.md
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          body_path: /tmp/release_body.md
+          generate_release_notes: false
