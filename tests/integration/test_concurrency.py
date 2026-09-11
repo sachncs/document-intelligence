@@ -7,8 +7,6 @@ import threading
 from pathlib import Path
 
 import pytest
-from docendo.config import reset_settings_cache
-from docendo.retrieval._internal import reset as reset_internal
 from docendo.retrieval.record import ChunkRecord
 from docendo.retrieval.store import Store
 from pydantic import HttpUrl
@@ -47,19 +45,8 @@ def _record(circ: str, text: str, hash_: str) -> ChunkRecord:
 
 
 @pytest.fixture
-def _tmp_db(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    db = tmp_path / "docendo.sqlite3"
-    monkeypatch.setenv("STORE_PATH", str(db))
-    monkeypatch.setenv("VECTOR_DIMS", str(DIMS))
-    monkeypatch.setenv("VECTOR_KEY", "test-key")
-    monkeypatch.setenv("VECTOR_BASE", "https://embed.example.com")
-    monkeypatch.setenv("VECTOR_MODEL", "Qwen/Qwen3-Embedding-8B")
-    monkeypatch.setenv("TOKENIZER_MODEL", "Qwen/Qwen3-Embedding-8B")
-    reset_settings_cache()
-    reset_internal()
-    yield db
-    reset_internal()
-    reset_settings_cache()
+def _tmp_db(tmp_path: Path) -> Path:
+    return tmp_path / "docendo.sqlite3"
 
 
 class TestConcurrency:
@@ -157,12 +144,12 @@ class TestConcurrency:
                 real_lock = store._lock  # type: ignore[attr-defined]
 
                 class CountingLock:
-                    def __enter__(self_inner) -> None:  # noqa: N805
+                    def __enter__(self) -> None:
                         nonlocal lock_acquired
                         lock_acquired += 1
                         real_lock.acquire()
 
-                    def __exit__(self_inner, *exc: object) -> None:
+                    def __exit__(self, *exc: object) -> None:
                         real_lock.release()
 
                 store._lock = CountingLock()  # type: ignore[attr-defined]
