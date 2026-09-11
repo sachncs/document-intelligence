@@ -15,6 +15,7 @@ Schema:
 
 from __future__ import annotations
 
+import asyncio
 import importlib.resources
 import sqlite3
 import struct
@@ -337,27 +338,14 @@ class Store:
         with self._lock:
             return list(self._conn.execute(sql, (fts_query, k)).fetchall())
 
-    def vec(self, query: str, k: int) -> list[sqlite3.Row]:
-        import asyncio
-
+    async def avec(self, query: str) -> list[list[float]]:
+        """Embed ``query`` via the configured embedding endpoint."""
         from docendo.retrieval.embedder import aembed
 
-        async def go() -> list[list[float]]:
-            return await aembed([query], settings=self.settings)
+        return await aembed([query], settings=self.settings)
 
-        try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                import concurrent.futures
-
-                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
-                    future = ex.submit(asyncio.run, go())
-                    vecs = future.result()
-            else:
-                vecs = asyncio.run(go())
-        except RuntimeError:
-            vecs = asyncio.run(go())
-
+    def vec(self, query: str, k: int) -> list[sqlite3.Row]:
+        vecs = asyncio.run(self.avec(query))
         if not vecs or not vecs[0]:
             return []
         blob = parse_blob(vecs[0])
