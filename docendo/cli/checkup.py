@@ -39,6 +39,12 @@ def paths(settings: Settings) -> tuple[bool, str]:
 def chat_creds(settings: Settings) -> tuple[bool, str]:
     if not settings.chat_key:
         return False, "FAIL: CHAT_KEY not set"
+    if not settings.chat_url:
+        return False, (
+            "FAIL: CHAT_URL not set. "
+            "Set CHAT_URL to your OpenAI-compatible chat endpoint, e.g. "
+            "https://api.openai.com/v1"
+        )
     return True, f"OK (model={settings.chat}, base={settings.chat_url})"
 
 
