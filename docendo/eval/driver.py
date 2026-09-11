@@ -101,17 +101,39 @@ def run_bounded(
     concurrency: int,
     settings: Settings,
 ) -> list[Outcome]:
-    """Run cases with a bounded concurrency semaphore."""
-    sem = asyncio.Semaphore(concurrency)
+    """Run cases with a bounded worker pool fed by an asyncio.Queue.
 
-    async def bounded(case: Case) -> Outcome:
-        async with sem:
-            return await run_case(case, settings)
+    Creates ``concurrency`` worker coroutines that pull from a queue,
+    so the in-flight coroutine count stays at ``concurrency`` regardless
+    of ``len(cases)``. Old behaviour queued ``len(cases)`` coroutines
+    through one ``asyncio.gather`` and gated them only inside a closure
+    semaphore.
+    """
+    if not cases:
+        return []
 
-    async def all_results() -> list[Outcome]:
-        return await asyncio.gather(*[bounded(c) for c in cases])
+    queue: asyncio.Queue[Case | None] = asyncio.Queue()
+    for c in cases:
+        queue.put_nowait(c)
+    for _ in range(concurrency):
+        queue.put_nowait(None)
 
-    return asyncio.run(all_results())
+    results: list[Outcome] = []
+
+    async def worker() -> None:
+        while True:
+            case = await queue.get()
+            if case is None:
+                queue.task_done()
+                return
+            results.append(await run_case(case, settings))
+            queue.task_done()
+
+    async def all_results() -> None:
+        await asyncio.gather(*(worker() for _ in range(concurrency)))
+
+    asyncio.run(all_results())
+    return results
 
 
 def run(
