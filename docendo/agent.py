@@ -84,8 +84,9 @@ def model(chat_url: str = "", chat_key: str = "", chat_model: str = "") -> LiteL
     if not chat_url and not chat_key and not chat_model:
         s = get_settings()
         chat_url, chat_key, chat_model = s.chat_url, s.chat_key, s.chat
+    model_name = chat_model if "/" in chat_model else f"minimax/{chat_model}"
     return LiteLLMModel(
-        model_name=f"minimax/{chat_model}" if "/" not in chat_model else chat_model,
+        model_name=model_name,
         api_key=chat_key,
         api_base=chat_url,
     )
