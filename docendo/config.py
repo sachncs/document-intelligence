@@ -191,10 +191,6 @@ def probe_embedding_dim(
     network/credential failures or when the observed dimension does not match
     ``VECTOR_DIMS``.
     """
-    import asyncio
-
-    import litellm
-
     settings = settings or get_settings()
     settings.validate_tokenizer_match()
     settings.require_embeddings()
@@ -214,26 +210,20 @@ def probe_embedding_dim(
 
     try:
         resp = asyncio.run(probe())
-    except litellm.APIError as exc:  # type: ignore[attr-defined]
+    except (
+        litellm.APIError,  # type: ignore[attr-defined]
+        litellm.NotFoundError,  # type: ignore[attr-defined]
+        litellm.AuthenticationError,  # type: ignore[attr-defined]
+        litellm.BadRequestError,  # type: ignore[attr-defined]
+        litellm.PermissionDeniedError,  # type: ignore[attr-defined]
+        litellm.RateLimitError,  # type: ignore[attr-defined]
+        litellm.APIConnectionError,  # type: ignore[attr-defined]
+    ) as exc:
         raise ConfigurationError(
             f"Embedding probe failed for {settings.vector_id!r} at "
             f"{api_base!r}: {type(exc).__name__}: {exc}. "
             "Check VECTOR_KEY, VECTOR_BASE, and the model id."
         ) from exc
-    except Exception as exc:
-        # OpenAI SDK exception hierarchy (NotFoundError, BadRequestError,
-        # AuthenticationError, RateLimitError, etc.) is not part of
-        # litellm.APIError in this version. Catch the base Exception only
-        # to identify OpenAI SDK errors by ancestry and re-raise as
-        # ConfigurationError; anything else propagates as-is.
-        mro_modules = {c.__module__ for c in type(exc).__mro__}
-        if "openai" in mro_modules:
-            raise ConfigurationError(
-                f"Embedding probe failed for {settings.vector_id!r} at "
-                f"{api_base!r}: {type(exc).__name__}: {exc}. "
-                "Check VECTOR_KEY, VECTOR_BASE, and the model id."
-            ) from exc
-        raise
 
     try:
         observed = len(resp.data[0]["embedding"])
