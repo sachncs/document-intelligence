@@ -78,7 +78,8 @@ def aggregate(outcomes: list[Outcome]) -> Report:
         t: {
             "grounded_hallucination_rate": safe_avg(v["grounded"]),
             "ungrounded_hallucination_rate": safe_avg(v["ungrounded"]),
-            "n_cases": float(len(v["grounded"])),
+            "n_grounded": float(len(v["grounded"])),
+            "n_ungrounded": float(len(v["ungrounded"])),
         }
         for t, v in by_topic_raw.items()
     }
@@ -122,13 +123,14 @@ def render_markdown(report: Report) -> str:
     lines.append("")
     lines.append("## By topic")
     lines.append("")
-    lines.append("| Topic | Grounded hallu. | Ungrounded hallu. | n |")
-    lines.append("|---|---|---|---|")
+    lines.append("| Topic | Grounded hallu. | Ungrounded hallu. | n_grounded | n_ungrounded |")
+    lines.append("|---|---|---|---|---|")
     for topic, m in sorted(report.by_topic.items()):
         lines.append(
             f"| {topic} | {m['grounded_hallucination_rate']:.1%} "
             f"| {m['ungrounded_hallucination_rate']:.1%} "
-            f"| {int(m['n_cases'])} |"
+            f"| {int(m['n_grounded'])} "
+            f"| {int(m['n_ungrounded'])} |"
         )
     lines.append("")
     lines.append("## Per-case")

@@ -107,6 +107,26 @@ class TestReportGeneration:
             assert "claims" in data["grounded_hallucination"]
             assert "claims" in data["ungrounded_hallucination"]
 
+    def test_by_topic_reports_separate_n_counts(self, _sample_results: list[Outcome]) -> None:
+        """Each topic surfaces grounded and ungrounded counts independently."""
+        from docendo.eval.summarize import aggregate
+
+        rep = aggregate(_sample_results)
+        for topic, m in rep.by_topic.items():
+            assert "n_grounded" in m
+            assert "n_ungrounded" in m
+            # _sample_results has both grounded and ungrounded verdicts for both cases.
+            assert m["n_grounded"] == 1.0 or m["n_ungrounded"] == 1.0
+
+    def test_by_topic_markdown_contains_both_counts(
+        self, _sample_results: list[Outcome], tmp_path: Path
+    ) -> None:
+        out = tmp_path / "report.md"
+        render(_sample_results, out)
+        text = out.read_text()
+        assert "n_grounded" in text
+        assert "n_ungrounded" in text
+
 
 class TestBoundedConcurrency:
     def test_run_bounded_caps_in_flight_workers(self) -> None:
