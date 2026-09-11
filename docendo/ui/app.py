@@ -6,6 +6,7 @@ Run with: ``docendo demo`` (defaults to http://localhost:8501).
 from __future__ import annotations
 
 import asyncio
+import concurrent.futures
 from typing import Any
 
 import streamlit as st
@@ -28,6 +29,12 @@ def build_agents() -> tuple[Any, Any]:
         build_agent(grounded=True, settings=settings),
         build_agent(grounded=False, settings=settings),
     )
+
+
+@st.cache_resource
+def executor() -> concurrent.futures.ThreadPoolExecutor:
+    """Dedicated worker pool so async work runs on its own event loop."""
+    return concurrent.futures.ThreadPoolExecutor(max_workers=2)
 
 
 @st.cache_data
@@ -56,6 +63,21 @@ async def grade(answer: str, gold: str) -> dict[str, Any]:
         return {"hallucination_rate": 0.0, "grounding_score": 1.0, "claims": []}
     result = await ascore(answer, gold, get_settings())
     return result.to_dict()
+
+
+def run_async(coro: Any) -> Any:
+    """Run ``coro`` to completion on a worker-thread event loop."""
+    ex = executor()
+
+    def runner() -> Any:
+        loop = asyncio.new_event_loop()
+        try:
+            return loop.run_until_complete(coro)
+        finally:
+            loop.close()
+
+    future = ex.submit(runner)
+    return future.result()
 
 
 def render(col: Any, label: str, answer: Answer, halluc: dict[str, Any]) -> None:
@@ -115,27 +137,23 @@ def main() -> None:
     grounded_chat_agent, ungrounded_chat_agent = build_agents()
 
     with st.spinner("Running both agents in parallel..."):
-        result_pair: tuple[Answer, Answer] = asyncio.run(
+        grounded_out, ungrounded_out = run_async(
             asyncio.gather(
                 ask(grounded_chat_agent, question),
                 ask(ungrounded_chat_agent, question),
-            )  # type: ignore[arg-type]
+            )
         )
-        grounded_out: Answer = result_pair[0]
-        ungrounded_out: Answer = result_pair[1]
 
     items = load_cases(get_settings().eval_dataset_path)
     gold = next((c.expected_output for c in items if c.name == choice), "")
 
     with st.spinner("Judging answers..."):
-        halluc_pair: tuple[dict[str, Any], dict[str, Any]] = asyncio.run(
+        g_halluc, u_halluc = run_async(
             asyncio.gather(
                 grade(grounded_out.answer, gold),
                 grade(ungrounded_out.answer, gold),
-            )  # type: ignore[arg-type]
+            )
         )
-        g_halluc: dict[str, Any] = halluc_pair[0]
-        u_halluc: dict[str, Any] = halluc_pair[1]
 
     col_g, col_u = st.columns(2)
     render(col_g, "Grounded", grounded_out, g_halluc)
