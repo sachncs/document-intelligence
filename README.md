@@ -27,6 +27,10 @@ directions, and policy documents with:
 - **Local-first storage** — SQLite + FTS5 + sqlite-vector; no managed
   vector DB, no Elasticsearch, no network egress for retrieval.
 
+Sample A/B comparison (grounded left, ungrounded right):
+
+![Sample Q/A](docs/assets/sample_qa.svg)
+
 ## Limitations
 
 `docendo` is an alpha release. See [KNOWN_GAPS.md](KNOWN_GAPS.md) for
