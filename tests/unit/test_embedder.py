@@ -110,3 +110,30 @@ class TestErrors:
             pytest.raises(EmbeddingProviderError),
         ):
             asyncio.run(embedder.aembed(["a", "b"]))
+
+    def test_failed_aembed_leaves_cache_empty(self) -> None:
+        """Cache writes only happen after the entire input set is embedded.
+
+        A mid-batch failure aborts the request without any cache write so
+        a retry is not silently re-using stale entries from the failed
+        attempt.
+        """
+        import litellm  # type: ignore[import-untyped]
+
+        from docendo.exceptions import EmbeddingProviderError
+
+        async def _always_fail(*args, **kwargs):
+            raise litellm.exceptions.NotFoundError(
+                message="model not found",
+                llm_provider="openai_compatible",
+                model="Qwen/Qwen3-Embedding-8B",
+            )
+
+        embedder.reset()
+        before = len(embedder.CACHE)
+        with (
+            patch.object(litellm, "aembedding", side_effect=_always_fail),
+            pytest.raises(EmbeddingProviderError),
+        ):
+            asyncio.run(embedder.aembed(["a", "b", "c"]))
+        assert len(embedder.CACHE) == before, "cache should be untouched on failure"

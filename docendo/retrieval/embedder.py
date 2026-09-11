@@ -124,7 +124,6 @@ async def aembed(
                             "Update VECTOR_DIMS or pick a different model."
                         )
                     vectors[batch[offset]] = vec
-                    put(key(batch_texts[offset], settings), vec)
             break
         except EmbeddingProviderError:
             raise
@@ -148,6 +147,11 @@ async def aembed(
                 f"Embedding call failed for {settings.vector_id!r} at {api_base!r}: "
                 f"{type(exc).__name__}: {exc}"
             ) from exc
+
+    if all(v is not None for v in vectors):
+        for i in uncached_idx:
+            assert vectors[i] is not None
+            put(key(texts[i], settings), vectors[i])  # type: ignore[arg-type]
 
     if any(v is None for v in vectors):
         if last_exc is not None:
