@@ -21,9 +21,8 @@ import litellm  # type: ignore[import-untyped]
 from docendo.config import Settings, get_settings
 from docendo.exceptions import EmbeddingProviderError
 
-
 CACHE_MAX = 8192
-CACHE: "OrderedDict[tuple[Any, ...], list[float]]" = OrderedDict()
+CACHE: OrderedDict[tuple[Any, ...], list[float]] = OrderedDict()
 
 
 def hash(text: str) -> str:
