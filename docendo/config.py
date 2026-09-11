@@ -157,8 +157,14 @@ class Settings(BaseSettings):
 
     @property
     def chat(self) -> str:
-        """LiteLLM provider-prefixed chat model id."""
-        return f"minimax/{self.chat_model}"
+        """LiteLLM provider-prefixed chat model id.
+
+        If ``chat_model`` already carries a ``provider/`` prefix it is
+        returned as-is; otherwise the ``minimax/`` default provider is
+        prepended. Mirrors :pyattr:`vector_id`.
+        """
+        model = self.chat_model
+        return model if "/" in model else f"minimax/{model}"
 
     @property
     def vector_id(self) -> str:

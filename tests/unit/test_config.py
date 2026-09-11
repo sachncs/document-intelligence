@@ -13,6 +13,17 @@ class TestSettings:
         s = Settings()
         assert s.chat == "minimax/MiniMax-M3"
 
+    def test_chat_property_preserves_existing_prefix(self, monkeypatch) -> None:
+        """Models with an explicit provider/ prefix are not double-prefixed."""
+        monkeypatch.setenv("CHAT_MODEL", "openai/gpt-4o")
+        s = Settings()
+        assert s.chat == "openai/gpt-4o"
+
+    def test_chat_property_preserves_anthropic_prefix(self, monkeypatch) -> None:
+        monkeypatch.setenv("CHAT_MODEL", "anthropic/claude-3-opus")
+        s = Settings()
+        assert s.chat == "anthropic/claude-3-opus"
+
     def test_vector_id_preserves_existing_prefix(self, monkeypatch) -> None:
         # BFSI_* env vars were removed in 0.4.0; this test guards against regressions
         # where someone re-introduces a prefixed model id with a slash.
