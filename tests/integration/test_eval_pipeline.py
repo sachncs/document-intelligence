@@ -112,7 +112,7 @@ class TestReportGeneration:
         from docendo.eval.summarize import aggregate
 
         rep = aggregate(_sample_results)
-        for topic, m in rep.by_topic.items():
+        for _topic, m in rep.by_topic.items():
             assert "n_grounded" in m
             assert "n_ungrounded" in m
             # _sample_results has both grounded and ungrounded verdicts for both cases.
@@ -134,8 +134,8 @@ class TestBoundedConcurrency:
         import asyncio
 
         from docendo.config import Settings
-        from docendo.eval.driver import run_bounded
         from docendo.eval.cases import Case
+        from docendo.eval.driver import run_bounded
 
         in_flight = 0
         peak = 0
